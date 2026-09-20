@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Styling Planner — Salsa &amp; Bachata</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+<style>
+  :root{
+    --wood-950:#1a1210;
+    --wood-900:#211714;
+    --wood-800:#2c1f1a;
+    --wood-700:#3a2a22;
+    --wood-line: rgba(255,255,255,0.06);
+    --brass:#c9974a;
+    --brass-bright:#e6bf6e;
+    --mahogany:#a13c30;
+    --paper:#f1e7d8;
+    --ink:#efe4d3;
+    --ink-dim:#b4a390;
+    --ink-faint:#8a7a68;
+    --salsa: #a13c30;
+    --bachata: #3f6b62;
+    --solid-green: #6b8f5c;
+    --focus: #e6bf6e;
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    font-size: 16px;
+  }
+  :root[data-theme="light"]{
+    --wood-950:#f1e7d8; --wood-900:#f6efe3; --wood-800:#fffaf1; --wood-700:#ffffff;
+    --wood-line: rgba(0,0,0,0.08); --ink:#2c1f1a; --ink-dim:#5a4a3c; --ink-faint:#8a7a68;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --wood-950:#f1e7d8; --wood-900:#f6efe3; --wood-800:#fffaf1; --wood-700:#ffffff;
+      --wood-line: rgba(0,0,0,0.08); --ink:#2c1f1a; --ink-dim:#5a4a3c; --ink-faint:#8a7a68;
+    }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: repeating-linear-gradient(180deg, transparent 0 38px, var(--wood-line) 38px 39px), var(--wood-950);
+    color:var(--ink); font-family:'Inter',system-ui,-apple-system,sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased; padding-bottom:64px;
+  }
+  ::selection{ background:var(--brass); color:var(--wood-950); }
+  button{ font-family:inherit; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; } }
+
+  .shell{ max-width:1180px; margin:0 auto; padding:20px 16px 40px; }
+
+  /* Routine bar */
+  .routine-bar{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .routine-bar select{
+    flex:1; min-width:140px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink);
+    padding:8px 10px; border-radius:var(--radius-sm); font-size:0.85rem;
+  }
+
+  header.top{ display:flex; flex-direction:column; gap:14px; padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid var(--wood-line); }
+  .brand{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .brand h1{ font-family:'Bebas Neue','Inter',sans-serif; font-weight:400; font-size:2.6rem; letter-spacing:0.5px; margin:0; line-height:0.9; color:var(--paper); }
+  :root[data-theme="light"] .brand h1{ color: var(--ink); }
+  @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .brand h1{ color: var(--ink); } }
+  .brand .sub{ font-size:0.8rem; color:var(--ink-faint); letter-spacing:0.3px; }
+  .meta-row{ display:grid; grid-template-columns: 1fr; gap:10px; }
+  @media (min-width:640px){ .meta-row{ grid-template-columns: 1.4fr 1fr 0.7fr; } }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{ font-size:0.7rem; color:var(--ink-faint); text-transform:lowercase; }
+  .field input{ background:var(--wood-800); border:1px solid var(--wood-line); border-radius:var(--radius-sm); color:var(--ink); padding:8px 10px; font-size:0.92rem; }
+  .field input:focus{ border-color: var(--brass); }
+  .totals{ display:flex; gap:18px; flex-wrap:wrap; font-size:0.82rem; color:var(--ink-dim); }
+  .totals b{ color:var(--brass-bright); font-weight:600; }
+
+  .tabs{ display:flex; gap:2px; margin-bottom:14px; }
+  .tabs button{ flex:1; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); padding:10px; font-size:0.85rem; cursor:pointer; border-radius:var(--radius-sm); }
+  .tabs button.active{ color:var(--wood-950); background:var(--brass); border-color:var(--brass); font-weight:600; }
+  @media (min-width:900px){ .tabs{ display:none; } }
+  .layout{ display:block; }
+  @media (min-width:900px){ .layout{ display:grid; grid-template-columns: 360px 1fr; gap:22px; align-items:start; } }
+  .pane{ display:none; }
+  .pane.active{ display:block; }
+  @media (min-width:900px){ .pane{ display:block; } }
+
+  .lib-search{ width:100%; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink); padding:9px 10px; font-size:0.85rem; border-radius:var(--radius-sm); margin-bottom:8px; }
+  .lib-search:focus{ border-color:var(--brass); }
+  .lib-toprow{ display:flex; gap:6px; margin-bottom:8px; }
+  .lib-toprow button{ flex:none; padding:8px 10px; font-size:0.76rem; border-radius:var(--radius-sm); background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); cursor:pointer; }
+  .lib-toprow button:hover{ border-color:var(--brass); color:var(--ink); }
+  .lib-toprow button.active{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
+  .lib-count{ font-size:0.72rem; color:var(--ink-faint); margin-bottom:8px; }
+
+  .style-filter{ display:flex; gap:6px; margin-bottom:8px; }
+  .style-filter button{ flex:1; padding:8px 6px; font-size:0.78rem; border-radius:var(--radius-sm); background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); cursor:pointer; }
+  .style-filter button.active[data-style="all"]{ background:var(--brass); color:var(--wood-950); border-color:var(--brass); }
+  .style-filter button.active[data-style="salsa"]{ background:var(--salsa); color:#fff; border-color:var(--salsa); }
+  .style-filter button.active[data-style="bachata"]{ background:var(--bachata); color:#fff; border-color:var(--bachata); }
+
+  .more-filters{ display:none; margin-bottom:10px; padding:10px; background:var(--wood-900); border:1px solid var(--wood-line); border-radius:var(--radius-md); }
+  .more-filters.open{ display:block; }
+  .chip-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .chip-row:last-child{ margin-bottom:0; }
+  .chip-row-label{ font-size:0.65rem; color:var(--ink-faint); width:100%; margin-bottom:2px; text-transform:uppercase; letter-spacing:0.4px; }
+  .chip{ padding:5px 9px; font-size:0.74rem; border-radius:12px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); cursor:pointer; }
+  .chip.active{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
+  .chip.mastery-new.active{ background:var(--ink-faint); border-color:var(--ink-faint); color:var(--wood-950); }
+  .chip.mastery-drilling.active{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
+  .chip.mastery-solid.active{ background:var(--solid-green); border-color:var(--solid-green); color:#fff; }
+
+  .shuffle-box{ margin-bottom:10px; border:1px dashed var(--wood-line); border-radius:var(--radius-md); padding:10px; }
+  .shuffle-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .shuffle-row input{ width:56px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); }
+  .shuffle-list{ margin-top:8px; display:flex; flex-direction:column; gap:5px; }
+  .shuffle-item{ display:flex; align-items:center; gap:8px; background:var(--wood-800); border:1px solid var(--wood-line); border-radius:var(--radius-sm); padding:6px 8px; font-size:0.8rem; }
+  .shuffle-item span{ flex:1; }
+  .shuffle-item button{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:0.85rem; }
+  .shuffle-item button:hover{ color:var(--brass-bright); }
+
+  .cat-group{ margin-bottom:16px; }
+  .cat-title{ font-size:0.72rem; letter-spacing:0.4px; color:var(--ink-faint); padding-bottom:6px; margin-bottom:8px; border-bottom:1px solid var(--wood-line); }
+  .move-card{ background:var(--wood-800); border:1px solid var(--wood-line); border-radius:var(--radius-md); padding:9px 10px; margin-bottom:6px; }
+  .move-card:hover{ border-color: var(--brass); }
+  .move-top{ display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+  .move-tag{ flex:none; width:6px; align-self:stretch; border-radius:3px; }
+  .move-tag.salsa{ background:var(--salsa); }
+  .move-tag.bachata{ background:var(--bachata); }
+  .move-tag.both{ background: linear-gradient(180deg, var(--salsa), var(--bachata)); }
+  .move-body{ flex:1; min-width:0; }
+  .move-name-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .move-name{ font-size:0.88rem; font-weight:600; color:var(--ink); }
+  .diff-badge{ font-size:0.62rem; padding:1px 6px; border-radius:8px; text-transform:uppercase; letter-spacing:0.3px; }
+  .diff-badge.beg{ background:rgba(107,143,92,0.25); color:var(--solid-green); }
+  .diff-badge.int{ background:rgba(201,151,74,0.22); color:var(--brass-bright); }
+  .diff-badge.adv{ background:rgba(161,60,48,0.25); color:#e08b7d; }
+  .move-desc{ font-size:0.76rem; color:var(--ink-faint); margin-top:2px; line-height:1.35; }
+  .move-counts-row{ display:flex; align-items:center; gap:10px; margin-top:5px; flex-wrap:wrap; }
+  .move-counts{ font-size:0.7rem; color:var(--brass-bright); }
+  .move-watch{ font-size:0.7rem; color:var(--ink-faint); text-decoration:none; display:inline-flex; align-items:center; gap:4px; border-bottom:1px dotted var(--ink-faint); }
+  .move-watch:hover{ color:var(--brass-bright); border-color:var(--brass-bright); }
+  .move-video-toggle, .move-video-set{ font-size:0.7rem; color:var(--ink-faint); background:none; border:none; cursor:pointer; padding:0; border-bottom:1px dotted var(--ink-faint); }
+  .move-video-toggle:hover, .move-video-set:hover{ color:var(--brass-bright); border-color:var(--brass-bright); }
+  .move-side{ flex:none; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .add-btn{ width:26px; height:26px; border-radius:50%; border:1px solid var(--brass); background:transparent; color:var(--brass-bright); font-size:1rem; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .add-btn:hover{ background:var(--brass); color:var(--wood-950); }
+  .star-btn{ background:none; border:none; cursor:pointer; font-size:1rem; color:var(--ink-faint); padding:0; line-height:1; }
+  .star-btn.active{ color:var(--brass-bright); }
+  .mastery-pill{ margin-top:6px; font-size:0.65rem; padding:2px 8px; border-radius:9px; border:1px solid var(--ink-faint); color:var(--ink-faint); background:transparent; cursor:pointer; }
+  .mastery-pill.drilling{ border-color:var(--brass); color:var(--brass-bright); }
+  .mastery-pill.solid{ border-color:var(--solid-green); color:var(--solid-green); }
+
+  .video-panel{ margin-top:8px; }
+  .video-embed{ position:relative; width:100%; padding-top:56.25%; margin-top:6px; border-radius:var(--radius-sm); overflow:hidden; background:#000; }
+  .video-embed video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+  .video-hint{ font-size:0.68rem; color:var(--ink-faint); margin-top:6px; }
+  .file-btn{ display:inline-flex; align-items:center; cursor:pointer; }
+  .routine-video-box{ margin-bottom:14px; }
+  .routine-video-box .btn{ margin-right:8px; margin-bottom:6px; }
+
+  .song-map-box{ margin-bottom:16px; border:1px solid var(--wood-line); border-radius:var(--radius-md); padding:12px; background:var(--wood-900); }
+  .song-map-connect{ display:flex; gap:8px; flex-wrap:wrap; }
+  .song-map-connect input{ flex:1; min-width:160px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink); padding:8px 10px; border-radius:var(--radius-sm); font-size:0.85rem; }
+  .spotify-embed-wrap{ margin-bottom:10px; border-radius:var(--radius-sm); overflow:hidden; }
+  .spotify-embed-wrap iframe{ width:100%; height:152px; border:0; display:block; }
+  .song-map-controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:0.8rem; color:var(--ink-dim); }
+  .song-map-controls input{ width:70px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:0.8rem; }
+  #spotifyPosDisplay{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--brass-bright); }
+  .song-map-track{ position:relative; height:54px; background:var(--wood-800); border-radius:var(--radius-sm); margin-bottom:8px; }
+  .song-map-marker{ position:absolute; top:0; bottom:0; width:2px; background:var(--brass); cursor:pointer; }
+  .song-map-marker .marker-label{ position:absolute; top:-2px; left:4px; font-size:0.62rem; color:var(--ink-dim); white-space:nowrap; background:var(--wood-900); padding:1px 4px; border-radius:2px; }
+  .song-map-playhead{ position:absolute; top:0; bottom:0; width:2px; background:var(--mahogany); pointer-events:none; }
+  .song-map-nownext{ font-size:0.8rem; color:var(--ink-dim); margin-bottom:6px; }
+  .song-map-nownext b{ color:var(--brass-bright); }
+  .song-map-hint{ font-size:0.68rem; color:var(--ink-faint); line-height:1.4; }
+  .ti-time-btn{ margin-top:5px; font-size:0.7rem; padding:2px 8px; border-radius:9px; border:1px solid var(--ink-faint); color:var(--ink-faint); background:transparent; cursor:pointer; }
+  .ti-time-btn.set{ border-color:var(--brass); color:var(--brass-bright); }
+  .time-form{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .time-form input{ width:70px; background:var(--wood-900); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:0.78rem; }
+  .time-form button{ padding:6px 10px; font-size:0.76rem; border-radius:var(--radius-sm); border:1px solid var(--wood-line); background:var(--wood-800); color:var(--ink-dim); cursor:pointer; }
+  .time-form button.save{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
+  .ti-time-edit{ margin-top:5px; margin-left:4px; font-size:0.72rem; background:none; border:none; color:var(--ink-faint); cursor:pointer; }
+  .ti-time-edit:hover{ color:var(--brass-bright); }
+  .linklike{ background:none; border:none; color:var(--brass-bright); text-decoration:underline; cursor:pointer; font-size:0.78rem; padding:0; }
+  .song-map-box code{ background:var(--wood-800); padding:2px 6px; border-radius:3px; font-size:0.74rem; word-break:break-all; }
+  .song-map-box a{ color:var(--brass-bright); }
+  .video-embed iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .video-form{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .video-form input{ flex:1; min-width:140px; background:var(--wood-900); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:0.78rem; }
+  .video-form button{ padding:6px 10px; font-size:0.76rem; border-radius:var(--radius-sm); border:1px solid var(--wood-line); background:var(--wood-800); color:var(--ink-dim); cursor:pointer; }
+  .video-form button.save{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
+
+  .custom-move{ margin-top:6px; padding:10px; background:var(--wood-800); border:1px dashed var(--wood-line); border-radius:var(--radius-md); }
+  .custom-move input, .custom-move select{ width:100%; background:var(--wood-900); border:1px solid var(--wood-line); color:var(--ink); padding:7px 8px; font-size:0.82rem; border-radius:var(--radius-sm); margin-bottom:6px; }
+  .custom-move button{ width:100%; padding:7px; background:var(--brass); color:var(--wood-950); border:none; border-radius:var(--radius-sm); font-weight:600; font-size:0.8rem; cursor:pointer; }
+
+  .timeline-toolbar{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .btn{ padding:8px 12px; font-size:0.8rem; border-radius:var(--radius-sm); cursor:pointer; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); }
+  .btn:hover{ border-color:var(--brass); color:var(--ink); }
+  .btn.primary{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); font-weight:600; }
+  .btn.danger:hover{ border-color:var(--mahogany); color:var(--mahogany); }
+
+  .section-block{ border:1px solid var(--wood-line); border-radius:var(--radius-md); margin-bottom:16px; overflow:hidden; background:var(--wood-900); }
+  .section-head{ display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--wood-800); border-bottom:1px solid var(--wood-line); }
+  .section-head input{ flex:1; background:transparent; border:none; color:var(--brass-bright); font-family:'Bebas Neue',sans-serif; font-size:1.15rem; letter-spacing:0.4px; padding:2px 4px; }
+  .section-head input:focus{ outline:none; border-bottom:1px solid var(--brass); }
+  .section-head .icon-btn{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:0.95rem; padding:4px; }
+  .section-head .icon-btn:hover{ color:var(--mahogany); }
+  .section-count{ font-size:0.7rem; color:var(--ink-faint); white-space:nowrap; }
+  .moves-list{ padding:10px 10px 12px; display:flex; flex-direction:column; gap:6px; }
+  .empty-hint{ padding:16px 12px; text-align:center; color:var(--ink-faint); font-size:0.82rem; }
+
+  .timeline-item{ display:grid; grid-template-columns: 30px 1fr auto; gap:10px; align-items:center; background:var(--wood-800); border:1px solid var(--wood-line); border-radius:var(--radius-md); padding:8px 10px; }
+  .timeline-item.dragging{ opacity:0.4; }
+  .count-badge{ font-family:'Bebas Neue',sans-serif; font-size:1.3rem; color:var(--brass); text-align:center; line-height:1; }
+  .ti-main{ min-width:0; }
+  .ti-name-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ti-name{ font-size:0.88rem; font-weight:600; }
+  .ti-style-dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+  .ti-style-dot.salsa{ background:var(--salsa); }
+  .ti-style-dot.bachata{ background:var(--bachata); }
+  .ti-style-dot.both{ background:var(--brass); }
+  .ti-notes{ width:100%; margin-top:5px; background:var(--wood-900); border:1px solid var(--wood-line); color:var(--ink-dim); font-size:0.78rem; padding:5px 7px; border-radius:var(--radius-sm); resize:vertical; min-height:28px; font-family:inherit; }
+  .ti-actions{ display:flex; flex-direction:column; gap:4px; align-items:center; }
+  .ti-actions button{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:0.9rem; padding:2px 4px; }
+  .ti-actions button:hover{ color:var(--brass-bright); }
+  .ti-actions button.remove:hover{ color:var(--mahogany); }
+  .drag-handle{ cursor:grab; color:var(--ink-faint); font-size:1rem; padding:2px 4px; }
+  .add-section-btn{ display:block; width:100%; padding:10px; background:transparent; border:1px dashed var(--wood-line); border-radius:var(--radius-md); color:var(--ink-faint); cursor:pointer; font-size:0.82rem; margin-bottom:18px; }
+  .add-section-btn:hover{ border-color:var(--brass); color:var(--brass-bright); }
+
+  /* Metronome bar */
+  .metro-bar{ position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--wood-900); border-top:1px solid var(--wood-line); padding:8px 16px; display:flex; align-items:center; gap:12px; }
+  .metro-btn{ width:36px; height:36px; border-radius:50%; border:1px solid var(--brass); background:transparent; color:var(--brass-bright); font-size:1rem; cursor:pointer; flex:none; }
+  .metro-bar.running .metro-btn{ background:var(--brass); color:var(--wood-950); }
+  .metro-count{ font-family:'Bebas Neue',sans-serif; font-size:1.6rem; color:var(--brass-bright); width:26px; text-align:center; }
+  .metro-label{ font-size:0.72rem; color:var(--ink-faint); }
+
+  /* Practice overlay */
+  .practice-overlay{ position:fixed; inset:0; background:var(--wood-950); z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
+  .practice-overlay.open{ display:flex; }
+  .practice-close{ position:absolute; top:16px; right:16px; background:none; border:none; color:var(--ink-faint); font-size:1.8rem; cursor:pointer; line-height:1; }
+  .practice-close:hover{ color:var(--mahogany); }
+  .practice-progress{ font-size:0.75rem; color:var(--ink-faint); margin-bottom:6px; }
+  .practice-section{ font-size:0.8rem; color:var(--brass-bright); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px; }
+  .practice-count{ font-family:'Bebas Neue',sans-serif; font-size:4rem; color:var(--brass); line-height:1; }
+  .practice-name{ font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--paper); margin:6px 0; }
+  .practice-desc{ font-size:0.9rem; color:var(--ink-dim); max-width:460px; margin-bottom:8px; }
+  .practice-notes{ font-size:0.85rem; color:var(--ink-faint); font-style:italic; max-width:460px; margin-bottom:10px; }
+  .practice-watch{ color:var(--brass-bright); font-size:0.85rem; text-decoration:none; border-bottom:1px dotted var(--brass-bright); margin-bottom:18px; }
+  .practice-video{ width:100%; max-width:420px; position:relative; padding-top:56.25%; margin-bottom:16px; border-radius:var(--radius-sm); overflow:hidden; background:#000; }
+  .practice-video iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .practice-video video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+  .practice-nav{ display:flex; gap:14px; }
+  .practice-nav button{ padding:10px 20px; border-radius:var(--radius-sm); border:1px solid var(--wood-line); background:var(--wood-800); color:var(--ink); cursor:pointer; font-size:0.9rem; }
+  .practice-nav button:hover{ border-color:var(--brass); }
+
+  .toast{ position:fixed; bottom:74px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--brass); color:var(--wood-950); padding:9px 16px; border-radius:var(--radius-sm); font-size:0.82rem; font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50; display:flex; align-items:center; gap:12px; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast button{ background:none; border:none; text-decoration:underline; color:var(--wood-950); cursor:pointer; font-weight:700; font-size:0.82rem; padding:0; }
+
+  #printSheet{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #printSheet, #printSheet *{ visibility:visible; }
+    #printSheet{ display:block; position:absolute; left:0; top:0; width:100%; color:#000; background:#fff; padding:20px; }
+    #printSheet h1{ font-family:'Bebas Neue',sans-serif; font-size:2rem; margin-bottom:2px; }
+    #printSheet .print-meta{ font-size:0.85rem; color:#444; margin:0 0 10px; }
+    #printSheet h2{ font-size:1.2rem; margin:18px 0 6px; border-bottom:1px solid #ccc; padding-bottom:4px; }
+    #printSheet li{ margin-bottom:4px; font-size:0.9rem; }
+  }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--wood-700); border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="routine-bar">
+    <select id="routineSelect" aria-label="Select routine"></select>
+    <button class="btn" id="newRoutineBtn">+ New</button>
+    <button class="btn" id="dupRoutineBtn">Duplicate</button>
+    <button class="btn danger" id="delRoutineBtn">Delete</button>
+  </div>
+
+  <header class="top">
+    <div class="brand">
+      <h1>Styling Planner</h1>
+      <span class="sub">salsa &amp; bachata — men's styling &amp; footwork</span>
+    </div>
+    <div class="meta-row">
+      <div class="field"><label>routine name</label><input id="routineName" type="text" placeholder="e.g. Social night set"></div>
+      <div class="field"><label>song / artist</label><input id="songName" type="text" placeholder="e.g. Frankie Ruiz — La Cura"></div>
+      <div class="field"><label>tempo (bpm)</label><input id="bpm" type="number" min="40" max="220" placeholder="96"></div>
+    </div>
+    <div class="totals">
+      <span><b id="totalMoves">0</b> moves</span>
+      <span><b id="totalCounts">0</b> counts (8-counts)</span>
+      <span><b id="totalTime">—</b> est. runtime</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="active" data-tab="library">Move library</button>
+    <button data-tab="timeline">Timeline</button>
+  </div>
+
+  <div class="layout">
+    <div class="pane active" data-pane="library">
+      <input type="text" id="librarySearch" class="lib-search" placeholder="Search moves (e.g. turn, hip, wave)…">
+      <div class="lib-toprow">
+        <button id="filtersToggle">Filters ▾</button>
+        <button id="favToggle">★ Favorites</button>
+      </div>
+      <div class="style-filter">
+        <button class="active" data-style="all">All</button>
+        <button data-style="salsa">Salsa</button>
+        <button data-style="bachata">Bachata</button>
+      </div>
+      <div class="more-filters" id="moreFilters">
+        <div class="chip-row">
+          <div class="chip-row-label">difficulty</div>
+          <button class="chip active" data-diff="all">All</button>
+          <button class="chip" data-diff="beg">Beginner</button>
+          <button class="chip" data-diff="int">Intermediate</button>
+          <button class="chip" data-diff="adv">Advanced</button>
+        </div>
+        <div class="chip-row">
+          <div class="chip-row-label">mastery</div>
+          <button class="chip active" data-mastery="all">All</button>
+          <button class="chip mastery-new" data-mastery="new">New</button>
+          <button class="chip mastery-drilling" data-mastery="drilling">Drilling</button>
+          <button class="chip mastery-solid" data-mastery="solid">Solid</button>
+        </div>
+      </div>
+      <div class="lib-count" id="libCount"></div>
+
+      <div class="shuffle-box">
+        <div class="chip-row-label">🎲 shuffle a combo from the filtered list above</div>
+        <div class="shuffle-row">
+          <label style="font-size:0.78rem; color:var(--ink-dim);">moves</label>
+          <input type="number" id="shuffleCount" min="2" max="10" value="4">
+          <button class="btn" id="shuffleGenerate">Generate</button>
+          <button class="btn primary" id="shuffleAdd" style="display:none;">+ Add as new section</button>
+        </div>
+        <div class="shuffle-list" id="shuffleList"></div>
+      </div>
+
+      <div id="library"></div>
+
+      <div class="custom-move">
+        <input id="customName" type="text" placeholder="Custom move name">
+        <input id="customCounts" type="text" placeholder="Counts (e.g. 8)">
+        <select id="customDiff">
+          <option value="beg">Beginner</option>
+          <option value="int" selected>Intermediate</option>
+          <option value="adv">Advanced</option>
+        </select>
+        <button id="addCustomBtn">Add to library</button>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="timeline">
+      <div class="timeline-toolbar">
+        <button class="btn primary" id="addSectionTop">+ Section</button>
+        <button class="btn" id="practiceBtn">▶ Practice</button>
+        <button class="btn" id="routineVideoBtn">🎥 Routine video</button>
+        <button class="btn" id="saveBtn">Save</button>
+        <button class="btn" id="printBtn">Print / PDF</button>
+        <button class="btn" id="exportBtn">Export text</button>
+        <button class="btn danger" id="clearBtn">Clear all</button>
+      </div>
+      <div id="routineVideoPanel"></div>
+      <div class="song-map-box" id="songMapBox"></div>
+      <div id="timeline"></div>
+      <button class="add-section-btn" id="addSectionBottom">+ Add another section</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="metro-bar" id="metroBar">
+  <button class="metro-btn" id="metroToggle">&#9654;</button>
+  <div class="metro-count" id="metroCount">–</div>
+  <div class="metro-label">metronome — uses the tempo field above</div>
+</div>
+
+<div class="practice-overlay" id="practiceOverlay">
+  <button class="practice-close" id="practiceClose">&times;</button>
+  <div class="practice-progress" id="practiceProgress"></div>
+  <div class="practice-section" id="practiceSection"></div>
+  <div class="practice-count" id="practiceCount"></div>
+  <div class="practice-name" id="practiceName"></div>
+  <div class="practice-desc" id="practiceDesc"></div>
+  <div class="practice-notes" id="practiceNotes"></div>
+  <div id="practiceVideoWrap"></div>
+  <a class="practice-watch" id="practiceWatch" target="_blank" rel="noopener noreferrer" style="display:none;">&#9654; watch on YouTube</a>
+  <div class="practice-nav">
+    <button id="practicePrev">‹ Prev</button>
+    <button id="practiceNext">Next ›</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printSheet"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Move library data ----------
+  const LIBRARY = [
+    {id:'fw1', cat:'Footwork', style:'salsa', diff:'int', name:'Suzy Q', counts:8, desc:'Twisting cross-step shuffle, weight rocking side to side.', yt:'Suzy Q salsa shines tutorial'},
+    {id:'fw2', cat:'Footwork', style:'salsa', diff:'int', name:'Mambo cross-step', counts:8, desc:'Syncopated cross steps on the "and" counts, on1 or on2.', yt:'mambo cross step salsa footwork tutorial'},
+    {id:'fw3', cat:'Footwork', style:'salsa', diff:'beg', name:'Cuban hip walk', counts:8, desc:'Forward walks with full Cuban motion through the hip on each step.', yt:'Cuban hip walk salsa tutorial'},
+    {id:'fw4', cat:'Footwork', style:'salsa', diff:'beg', name:'Heel-toe mambo', counts:8, desc:'Alternating heel and toe taps driving into a mambo rock step.', yt:'heel toe mambo salsa footwork'},
+    {id:'fw5', cat:'Footwork', style:'salsa', diff:'int', name:'Cha-cha crossover triple', counts:4, desc:'Triple-step crossover borrowed from cha-cha, danced as a salsa shine.', yt:'cha cha crossover triple salsa shine'},
+    {id:'fw6', cat:'Footwork', style:'salsa', diff:'int', name:'Double cross (cross-cross-step)', counts:4, desc:'Two quick crossing steps resolving onto the open step.', yt:'salsa double cross step footwork tutorial'},
+    {id:'fw7', cat:'Footwork', style:'salsa', diff:'beg', name:'Kick-ball-change', counts:4, desc:'Sharp kick into a quick ball-change, used as a punchy accent.', yt:'kick ball change salsa styling'},
+    {id:'fw8', cat:'Footwork', style:'salsa', diff:'int', name:'Slow drag (arrastre)', counts:8, desc:'Weight dragged slowly across the floor, heel leading, torso held back.', yt:'arrastre slow drag salsa footwork'},
+    {id:'fw9', cat:'Footwork', style:'salsa', diff:'beg', name:'Vacilada sway step', counts:8, desc:'Playful side-to-side vacillating step with a relaxed upper body.', yt:'vacilada salsa footwork tutorial'},
+    {id:'fw10', cat:'Footwork', style:'salsa', diff:'beg', name:'Basic on2 break', counts:8, desc:'Standard on2 timing break danced solo, weight and break clearly marked.', yt:'salsa on2 basic step break tutorial'},
+    {id:'fw11', cat:'Footwork', style:'bachata', diff:'beg', name:'Side-tap-tap combo', counts:4, desc:'Step side, tap-tap with the trailing foot, hip pop on the tap.', yt:'bachata side tap tap footwork tutorial'},
+    {id:'fw12', cat:'Footwork', style:'bachata', diff:'beg', name:'Slide &amp; drag step', counts:4, desc:'Long sliding step dragged into the close, weight held low.', yt:'bachata slide drag step tutorial'},
+    {id:'fw13', cat:'Footwork', style:'bachata', diff:'beg', name:'Bachata box step', counts:8, desc:'Square-pattern basic used as a grounding step between styling phrases.', yt:'bachata box step tutorial'},
+    {id:'fw14', cat:'Footwork', style:'bachata', diff:'int', name:'Cross-step syncopation', counts:8, desc:'Off-beat crossing steps layered over the standard bachata basic.', yt:'bachata cross step syncopation footwork'},
+    {id:'fw15', cat:'Footwork', style:'bachata', diff:'beg', name:'Double tap combo', counts:4, desc:'Two quick taps of the free foot before returning to weight.', yt:'bachata double tap footwork tutorial'},
+    {id:'fw16', cat:'Footwork', style:'bachata', diff:'beg', name:'Sway walk', counts:8, desc:'Slow traveling walk with an exaggerated lateral hip sway.', yt:'bachata sway walk styling tutorial'},
+    {id:'fw17', cat:'Footwork', style:'bachata', diff:'beg', name:'Heel dig accent', counts:4, desc:'Sharp heel dig into the floor on the accented beat.', yt:'bachata heel dig footwork'},
+    {id:'fw18', cat:'Footwork', style:'bachata', diff:'beg', name:'Toe-tap flick', counts:4, desc:'Light toe flick out to the side, used as a musical grace note.', yt:'bachata toe tap flick footwork'},
+    {id:'fw19', cat:'Footwork', style:'both', diff:'beg', name:'Basic step with hip pop', counts:8, desc:'Foundational basic step with a clear hip accent on count 4 and 8.', yt:'bachata basic step hip pop tutorial'},
+
+    {id:'bi1', cat:'Body Isolations', style:'bachata', diff:'adv', name:'Dominican body wave', counts:8, desc:'Wave initiated at the chest, travelling down through hips and knees.', yt:'Dominican body wave bachata tutorial'},
+    {id:'bi2', cat:'Body Isolations', style:'bachata', diff:'int', name:'Chest pop isolation', counts:4, desc:'Sharp chest pops on the beat, shoulders relaxed and still.', yt:'chest pop isolation bachata tutorial'},
+    {id:'bi3', cat:'Body Isolations', style:'salsa', diff:'int', name:'Cuban motion shine', counts:8, desc:'In-place hip figure-eight with grounded, bent-knee weight shifts.', yt:'Cuban motion salsa shine tutorial'},
+    {id:'bi4', cat:'Body Isolations', style:'both', diff:'beg', name:'Shoulder roll', counts:4, desc:'Alternating shoulder rolls, loose and slightly behind the beat.', yt:'shoulder roll isolation dance tutorial'},
+    {id:'bi5', cat:'Body Isolations', style:'bachata', diff:'beg', name:'Knee pop &amp; dip', counts:4, desc:'Quick knee pop into a low dip, torso staying upright.', yt:'bachata knee pop dip tutorial'},
+    {id:'bi6', cat:'Body Isolations', style:'salsa', diff:'int', name:'Reggaeton body shine', counts:8, desc:'Grounded, syncopated body isolation shine danced in place.', yt:'reggaeton body shine salsa styling'},
+    {id:'bi7', cat:'Body Isolations', style:'both', diff:'int', name:'Hip figure-8', counts:8, desc:'Continuous figure-eight motion through the hips, knees soft.', yt:'hip figure 8 isolation tutorial men'},
+    {id:'bi8', cat:'Body Isolations', style:'both', diff:'adv', name:'Rib cage isolation', counts:8, desc:'Ribs shift side to side independent of hips and shoulders.', yt:'rib cage isolation dance tutorial'},
+    {id:'bi9', cat:'Body Isolations', style:'bachata', diff:'adv', name:'Full body roll', counts:8, desc:'Complete wave from head through chest, hips, and knees.', yt:'full body roll bachata tutorial men'},
+    {id:'bi10', cat:'Body Isolations', style:'both', diff:'int', name:'Chest contraction &amp; release', counts:4, desc:'Sharp inward contraction of the chest followed by a slow release.', yt:'chest contraction release isolation tutorial'},
+    {id:'bi11', cat:'Body Isolations', style:'salsa', diff:'int', name:'Torso twist shine', counts:8, desc:'Upper body twists opposite the hips while feet stay grounded.', yt:'torso twist salsa shine tutorial'},
+    {id:'bi12', cat:'Body Isolations', style:'bachata', diff:'int', name:'Cuban motion (bachata style)', counts:8, desc:'Cuban hip motion adapted to bachata timing and lower tempo.', yt:'Cuban motion bachata styling tutorial'},
+
+    {id:'as1', cat:'Arm &amp; Hand Styling', style:'salsa', diff:'beg', name:'Machete cut', counts:4, desc:'Sharp diagonal cutting motion of the lead arm, wrist snapped at the end.', yt:'machete arm styling salsa tutorial'},
+    {id:'as2', cat:'Arm &amp; Hand Styling', style:'salsa', diff:'int', name:'Pretzel arm frame', counts:8, desc:'Crossed-arm frame styling used through a turn sequence.', yt:'pretzel arm styling salsa tutorial'},
+    {id:'as3', cat:'Arm &amp; Hand Styling', style:'bachata', diff:'beg', name:'Hand roll accent', counts:4, desc:'Slow rolling wrist and fingers, used to punctuate a musical accent.', yt:'hand roll arm styling bachata tutorial'},
+    {id:'as4', cat:'Arm &amp; Hand Styling', style:'both', diff:'beg', name:'Hair comb gesture', counts:4, desc:'Stylized hand-through-hair gesture, chin lifted, held for one count.', yt:'hair comb styling gesture dance men'},
+    {id:'as5', cat:'Arm &amp; Hand Styling', style:'salsa', diff:'int', name:'Sombrero circle', counts:8, desc:'Wide overhead circular arm sweep, as if tipping a hat.', yt:'sombrero arm styling salsa tutorial'},
+    {id:'as6', cat:'Arm &amp; Hand Styling', style:'salsa', diff:'int', name:'Matador cape sweep', counts:8, desc:'Wide sweeping arm pass across the body, bullfighter-style.', yt:'matador arm styling salsa tutorial'},
+    {id:'as7', cat:'Arm &amp; Hand Styling', style:'both', diff:'adv', name:'Snake arms', counts:8, desc:'Sequential wave travelling from shoulder to fingertips.', yt:'snake arms isolation tutorial dance'},
+    {id:'as8', cat:'Arm &amp; Hand Styling', style:'bachata', diff:'int', name:'Double hand roll', counts:8, desc:'Both wrists rolling in mirrored motion at chest height.', yt:'double hand roll bachata styling tutorial'},
+    {id:'as9', cat:'Arm &amp; Hand Styling', style:'both', diff:'beg', name:'Finger snap accent', counts:2, desc:'Crisp finger snap used to mark a syncopated hit in the music.', yt:'finger snap dance accent styling'},
+    {id:'as10', cat:'Arm &amp; Hand Styling', style:'both', diff:'beg', name:'Jacket / collar adjust', counts:4, desc:'Stylized adjustment of collar or lapel, confident and unhurried.', yt:'collar adjust styling gesture dance men'},
+    {id:'as11', cat:'Arm &amp; Hand Styling', style:'bachata', diff:'int', name:'Slow arm drag', counts:8, desc:'Dramatic, decelerating drag of the arm across the body line.', yt:'slow arm drag bachata styling tutorial'},
+    {id:'as12', cat:'Arm &amp; Hand Styling', style:'bachata', diff:'beg', name:'Wrist flick', counts:2, desc:'Quick flick of the wrist used as a sharp musical punctuation.', yt:'wrist flick bachata styling tutorial'},
+
+    {id:'ts1', cat:'Turns &amp; Spins', style:'salsa', diff:'adv', name:'Double turn with frame', counts:8, desc:'Two full spins held in a tight closed frame, spotting fixed.', yt:'double spin salsa shines tutorial'},
+    {id:'ts2', cat:'Turns &amp; Spins', style:'bachata', diff:'int', name:'Turn with wrap', counts:8, desc:'Single turn resolving into a wrapped arm position.', yt:'bachata turn with wrap tutorial'},
+    {id:'ts3', cat:'Turns &amp; Spins', style:'salsa', diff:'adv', name:'Slow motion (Ilusión)', counts:8, desc:'Deliberately slowed spin sequence played against the fast tempo.', yt:'ilusion slow motion salsa spin tutorial'},
+    {id:'ts4', cat:'Turns &amp; Spins', style:'salsa', diff:'adv', name:'Barrel turn', counts:8, desc:'Off-axis lean turn traveling in a wide arc.', yt:'barrel turn salsa styling tutorial'},
+    {id:'ts5', cat:'Turns &amp; Spins', style:'salsa', diff:'adv', name:'Chaine turns (traveling)', counts:8, desc:'Chained spotting turns that travel across the floor.', yt:'chaine turns salsa shines tutorial'},
+    {id:'ts6', cat:'Turns &amp; Spins', style:'both', diff:'beg', name:'Pivot turn', counts:4, desc:'Single controlled pivot on the standing leg, frame held tight.', yt:'pivot turn dance tutorial men styling'},
+    {id:'ts7', cat:'Turns &amp; Spins', style:'salsa', diff:'int', name:'Around-the-world arm turn', counts:8, desc:'Turn styled with the arm sweeping a full circle overhead.', yt:'around the world arm turn salsa styling'},
+    {id:'ts8', cat:'Turns &amp; Spins', style:'bachata', diff:'adv', name:'Body roll turn', counts:8, desc:'Turn combined with a body wave initiated mid-rotation.', yt:'body roll turn bachata tutorial'},
+    {id:'ts9', cat:'Turns &amp; Spins', style:'bachata', diff:'int', name:'Half turn with pause', counts:4, desc:'Turn stopped at the halfway point and held for effect.', yt:'half turn pause bachata styling tutorial'},
+
+    {id:'fa1', cat:'Freezes &amp; Accents', style:'both', diff:'beg', name:'Point &amp; freeze', counts:4, desc:'Sharp directional point held completely still on the break.', yt:'point and freeze dance styling tutorial'},
+    {id:'fa2', cat:'Freezes &amp; Accents', style:'bachata', diff:'beg', name:'Dramatic pause', counts:4, desc:'Full-body stop on a musical hit, weight settled low.', yt:'dramatic pause bachata styling tutorial'},
+    {id:'fa3', cat:'Freezes &amp; Accents', style:'salsa', diff:'beg', name:'Head roll accent', counts:4, desc:'Slow head roll used to punctuate the end of a shine.', yt:'head roll accent salsa styling tutorial'},
+    {id:'fa4', cat:'Freezes &amp; Accents', style:'both', diff:'beg', name:'Statue pose', counts:4, desc:'Held sculptural pose landed exactly on a musical accent.', yt:'freeze pose dance styling tutorial'},
+    {id:'fa5', cat:'Freezes &amp; Accents', style:'both', diff:'int', name:'Body dip freeze', counts:4, desc:'Low dip held for a beat before rising back to standing.', yt:'body dip freeze dance styling'},
+    {id:'fa6', cat:'Freezes &amp; Accents', style:'salsa', diff:'int', name:'Clave hit freeze', counts:2, desc:'Instant freeze landed precisely on the clave accent.', yt:'clave hit freeze salsa styling tutorial'},
+    {id:'fa7', cat:'Freezes &amp; Accents', style:'bachata', diff:'beg', name:'Look-away accent', counts:2, desc:'Sharp head turn away from the audience, chin lifted, held briefly.', yt:'look away head accent bachata styling'},
+    {id:'fa8', cat:'Freezes &amp; Accents', style:'bachata', diff:'int', name:'Chest pop freeze', counts:2, desc:'Single chest pop held rigid for one full count.', yt:'chest pop freeze bachata styling'},
+
+    {id:'sc1', cat:'Shines &amp; Combos', style:'salsa', diff:'adv', name:'New York shine combo', counts:16, desc:'Classic New York-style shine sequence linking footwork and arm styling.', yt:'New York style salsa shines combo tutorial'},
+    {id:'sc2', cat:'Shines &amp; Combos', style:'salsa', diff:'int', name:'Rumba box shine', counts:8, desc:'Box-pattern shine built from rumba footwork, styled with arm accents.', yt:'rumba box salsa shine tutorial'},
+    {id:'sc3', cat:'Shines &amp; Combos', style:'salsa', diff:'adv', name:'Cross-body shine sequence', counts:16, desc:'Multi-part shine built around repeated cross-body footwork.', yt:'cross body salsa shine sequence tutorial'},
+    {id:'sc4', cat:'Shines &amp; Combos', style:'salsa', diff:'adv', name:'On2 shine break', counts:16, desc:'Extended shine break built specifically on2 timing.', yt:'on2 salsa shine break tutorial'},
+    {id:'sc5', cat:'Shines &amp; Combos', style:'bachata', diff:'adv', name:'Turn-wave-freeze combo', counts:16, desc:'Turn into a body wave, resolving into a held freeze.', yt:'bachata turn wave freeze combo tutorial'},
+    {id:'sc6', cat:'Shines &amp; Combos', style:'bachata', diff:'int', name:'Basic combo with wave', counts:16, desc:'Standard basic footwork layered with a body wave through the phrase.', yt:'bachata basic combo body wave tutorial'},
+  ];
+  const CATEGORIES = ['Footwork','Body Isolations','Arm &amp; Hand Styling','Turns &amp; Spins','Freezes &amp; Accents','Shines &amp; Combos'];
+  const DIFF_LABEL = {beg:'Beginner', int:'Intermediate', adv:'Advanced'};
+
+  // ---------- State ----------
+  let libraryState = { custom: [], mastery: {}, favorites: [], videos: {} };
+  let localVideoUrls = {}; // key (move id or 'routine-<id>') -> object URL, for gallery-uploaded clips
+
+  // ---------- Local video storage (IndexedDB — videos live only in this browser) ----------
+  const IDB_NAME = 'stylingPlannerVideosDB';
+  const IDB_STORE = 'videos';
+  function openVideoDB(){
+    return new Promise((resolve, reject) => {
+      if(!window.indexedDB){ reject(new Error('IndexedDB unavailable')); return; }
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSetVideo(key, blob){
+    const db = await openVideoDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(blob, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbGetAllVideos(){
+    const db = await openVideoDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const keysReq = store.getAllKeys();
+      const valsReq = store.getAll();
+      tx.oncomplete = () => resolve({ keys: keysReq.result, vals: valsReq.result });
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbDeleteVideo(key){
+    const db = await openVideoDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function preloadLocalVideos(){
+    try{
+      const { keys, vals } = await idbGetAllVideos();
+      keys.forEach((k,i) => { localVideoUrls[k] = URL.createObjectURL(vals[i]); });
+    }catch(e){ /* IndexedDB unavailable — gallery-video feature just won't offer playback */ }
+  }
+  async function clearLocalVideo(key){
+    if(localVideoUrls[key]){ URL.revokeObjectURL(localVideoUrls[key]); delete localVideoUrls[key]; }
+    try{ await idbDeleteVideo(key); }catch(e){}
+  }
+  function personalVideoFor(moveId){
+    if(localVideoUrls[moveId]) return { type:'local', url: localVideoUrls[moveId] };
+    if(libraryState.videos[moveId]) return { type:'youtube', id: libraryState.videos[moveId] };
+    return null;
+  }
+
+  let routinesState = { routines: [], activeId: null };
+  let sections = [];
+  let styleFilter = 'all', diffFilter = 'all', masteryFilter = 'all', favoritesOnly = false;
+  let idCounter = 1;
+  let dragCtx = null;
+  let lastDeleted = null;
+  let shuffleResult = [];
+  let practiceList = [];
+  let practiceIdx = 0;
+  let openVideoFormId = null;
+  // Spotify auth/playback state (real Web API + Web Playback SDK — requires self-hosting, not the Claude sandbox)
+  let spotifyPlayer = null, spotifyDeviceId = null, spotifyReady = false, spotifyProfile = null;
+  let lastKnownPositionMs = 0, lastKnownTimestamp = 0, spotifyIsPaused = true, spotifyDurationMs = 0;
+  let spotifyPollTimer = null;
+  let sdkReadyResolve; const sdkReadyPromise = new Promise(res => { sdkReadyResolve = res; });
+  window.onSpotifyWebPlaybackSDKReady = () => { sdkReadyResolve(); };
+  const SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
+
+  function uid(prefix){ return prefix + (idCounter++); }
+  function ytUrl(query){ return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query); }
+
+  // ---------- Song map / Spotify helpers ----------
+  function parseSpotifyId(input){
+    input = (input||'').trim();
+    let m = input.match(/open\.spotify\.com\/track\/([A-Za-z0-9]{22})/);
+    if(m) return m[1];
+    m = input.match(/spotify:track:([A-Za-z0-9]{22})/);
+    if(m) return m[1];
+    if(/^[A-Za-z0-9]{22}$/.test(input)) return input;
+    return null;
+  }
+  function formatTime(totalSeconds){
+    totalSeconds = Math.max(0, Math.round(totalSeconds||0));
+    const m = Math.floor(totalSeconds/60), s = totalSeconds%60;
+    return m + ':' + (s<10?'0':'') + s;
+  }
+  function parseTimeInput(str){
+    str = (str||'').trim();
+    if(!str) return null;
+    if(str.includes(':')){
+      const parts = str.split(':').map(Number);
+      if(parts.some(isNaN)) return null;
+      return parts[0]*60 + parts[1];
+    }
+    const n = Number(str);
+    return isNaN(n) ? null : n;
+  }
+
+  // ---------- Spotify PKCE auth (no client secret — safe for a static, self-hosted page) ----------
+  function getClientId(){ return localStorage.getItem('spotify_client_id') || ''; }
+  function setClientId(id){ localStorage.setItem('spotify_client_id', id); }
+  function getRedirectUri(){ return window.location.origin + window.location.pathname; }
+  function getStoredTokens(){ try{ return JSON.parse(localStorage.getItem('spotify_tokens')); }catch(e){ return null; } }
+  function saveTokens(data){
+    const prev = getStoredTokens();
+    localStorage.setItem('spotify_tokens', JSON.stringify({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || (prev && prev.refresh_token),
+      expires_at: Date.now() + (data.expires_in*1000) - 60000
+    }));
+  }
+  function randomString(len){
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const vals = crypto.getRandomValues(new Uint8Array(len));
+    let out = ''; vals.forEach(v => out += chars[v % chars.length]);
+    return out;
+  }
+  async function pkceChallenge(verifier){
+    const data = new TextEncoder().encode(verifier);
+    const hashed = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(hashed))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  async function spotifyLogin(){
+    const clientId = getClientId();
+    if(!clientId){ showToast('Save a Client ID first'); return; }
+    const verifier = randomString(64);
+    localStorage.setItem('spotify_pkce_verifier', verifier);
+    const challenge = await pkceChallenge(verifier);
+    const params = new URLSearchParams({
+      client_id: clientId, response_type: 'code', redirect_uri: getRedirectUri(),
+      scope: SPOTIFY_SCOPES, code_challenge_method: 'S256', code_challenge: challenge
+    });
+    window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+  }
+  async function handleAuthCallback(){
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if(!code) return false;
+    const verifier = localStorage.getItem('spotify_pkce_verifier');
+    try{
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ client_id: getClientId(), grant_type: 'authorization_code', code, redirect_uri: getRedirectUri(), code_verifier: verifier })
+      });
+      const data = await res.json();
+      if(data.access_token){ saveTokens(data); window.history.replaceState({}, document.title, window.location.pathname); return true; }
+    }catch(e){}
+    return false;
+  }
+  async function getValidAccessToken(){
+    const tok = getStoredTokens();
+    if(!tok) return null;
+    if(Date.now() < tok.expires_at) return tok.access_token;
+    try{
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ client_id: getClientId(), grant_type: 'refresh_token', refresh_token: tok.refresh_token })
+      });
+      const data = await res.json();
+      if(data.access_token){ saveTokens(data); return data.access_token; }
+    }catch(e){}
+    return null;
+  }
+  function spotifyLogout(){
+    localStorage.removeItem('spotify_tokens');
+    spotifyProfile = null; spotifyReady = false;
+    clearInterval(spotifyPollTimer);
+    if(spotifyPlayer){ spotifyPlayer.disconnect(); spotifyPlayer = null; }
+    renderSongMapBox();
+  }
+  async function fetchSpotifyProfile(){
+    const token = await getValidAccessToken();
+    if(!token) return;
+    try{ const res = await fetch('https://api.spotify.com/v1/me', { headers:{'Authorization':'Bearer '+token} }); if(res.ok) spotifyProfile = await res.json(); }catch(e){}
+  }
+
+  // ---------- Spotify Web Playback SDK (creates a real, controllable device in this browser tab) ----------
+  async function initSpotifyPlayer(){
+    spotifyPlayer = new Spotify.Player({
+      name: 'Styling Planner',
+      getOAuthToken: cb => { getValidAccessToken().then(t => cb(t)); },
+      volume: 0.7
+    });
+    spotifyPlayer.addListener('ready', ({device_id}) => {
+      spotifyDeviceId = device_id; spotifyReady = true;
+      clearInterval(spotifyPollTimer);
+      spotifyPollTimer = setInterval(() => renderSongMapTrack(), 500);
+      renderSongMapBox();
+    });
+    spotifyPlayer.addListener('not_ready', () => { spotifyReady = false; });
+    spotifyPlayer.addListener('player_state_changed', (state) => {
+      if(!state) return;
+      lastKnownPositionMs = state.position; lastKnownTimestamp = Date.now();
+      spotifyIsPaused = state.paused; spotifyDurationMs = state.duration;
+      renderSongMapTrack();
+    });
+    spotifyPlayer.addListener('initialization_error', ({message}) => showToast('Spotify init error: ' + message));
+    spotifyPlayer.addListener('authentication_error', () => showToast('Spotify session expired — log in again'));
+    spotifyPlayer.addListener('account_error', () => showToast('Playback control needs Spotify Premium'));
+    await spotifyPlayer.connect();
+  }
+  function currentPlaybackMs(){ return lastKnownPositionMs + (spotifyIsPaused ? 0 : (Date.now()-lastKnownTimestamp)); }
+  async function spotifyPlayTrackAt(trackId, ms){
+    if(!spotifyReady){ showToast('Spotify device not ready yet'); return; }
+    const token = await getValidAccessToken();
+    try{
+      const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
+        method:'PUT', headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({ uris:['spotify:track:'+trackId], position_ms: Math.round(ms||0) })
+      });
+      if(res.status === 403) showToast('Playback control needs Spotify Premium');
+    }catch(e){ showToast('Could not start playback'); }
+  }
+  async function spotifyTogglePlay(){ if(spotifyPlayer) await spotifyPlayer.togglePlay(); }
+
+  function renderSongMapTrack(){
+    const track = document.getElementById('songMapTrack');
+    if(!track) return;
+    const r = activeRoutine();
+    const flat = buildPracticeList().map(x=>x.item).filter(it => it.time != null);
+    const totalMs = spotifyDurationMs || ((flat.reduce((m,it)=>Math.max(m,it.time), 0) + 10) * 1000);
+    const elapsedMs = spotifyReady ? currentPlaybackMs() : 0;
+    track.innerHTML = '';
+    flat.forEach(it => {
+      const pct = Math.min(100, (it.time*1000/totalMs)*100);
+      const marker = document.createElement('div');
+      marker.className = 'song-map-marker';
+      marker.style.left = pct + '%';
+      marker.innerHTML = `<span class="marker-label">${escapeAttr(it.name)} · ${formatTime(it.time)}</span>`;
+      marker.addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, it.time*1000));
+      track.appendChild(marker);
+    });
+    const playhead = document.createElement('div');
+    playhead.className = 'song-map-playhead';
+    playhead.style.left = Math.min(100, (elapsedMs/totalMs)*100) + '%';
+    track.appendChild(playhead);
+
+    const nowNextEl = document.getElementById('songMapNowNext');
+    if(nowNextEl){
+      if(!flat.length){
+        nowNextEl.textContent = 'Set a time on at least one move below to start mapping the song.';
+      } else {
+        const sorted = flat.slice().sort((a,b)=>a.time-b.time);
+        const elapsedSec = elapsedMs/1000;
+        let current = null, next = null;
+        for(const it of sorted){ if(it.time <= elapsedSec) current = it; else { next = it; break; } }
+        let html = current ? ('Now: <b>' + escapeAttr(current.name) + '</b>') : 'Not started yet';
+        if(next) html += ' — Next: <b>' + escapeAttr(next.name) + '</b> in ' + Math.max(0, Math.round(next.time-elapsedSec)) + 's';
+        nowNextEl.innerHTML = html;
+      }
+    }
+    const posEl = document.getElementById('spotifyPosDisplay');
+    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (spotifyDurationMs ? ' / ' + formatTime(spotifyDurationMs/1000) : '');
+  }
+
+  function renderSongMapBox(){
+    const box = document.getElementById('songMapBox');
+    if(!box) return;
+    const r = activeRoutine();
+    const clientId = getClientId();
+    const tokens = getStoredTokens();
+
+    if(!clientId){
+      box.innerHTML = `
+        <div class="song-map-hint">To connect real Spotify playback, create a free app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a>, then add this exact Redirect URI in its settings:</div>
+        <div class="song-map-hint"><code>${escapeAttr(getRedirectUri())}</code> <button class="linklike" id="copyRedirectBtn">Copy</button></div>
+        <div class="song-map-connect">
+          <input type="text" id="clientIdInput" placeholder="Paste the app's Client ID">
+          <button class="btn primary" id="saveClientIdBtn">Save</button>
+        </div>
+        <div class="song-map-hint">This runs entirely in your browser — no server, no client secret. Playback control needs a Spotify Premium account.</div>
+      `;
+      document.getElementById('saveClientIdBtn').addEventListener('click', () => {
+        const id = document.getElementById('clientIdInput').value.trim();
+        if(!id){ showToast('Paste your Client ID first'); return; }
+        setClientId(id); renderSongMapBox();
+      });
+      document.getElementById('copyRedirectBtn').addEventListener('click', () => {
+        navigator.clipboard?.writeText(getRedirectUri());
+        showToast('Redirect URI copied');
+      });
+      return;
+    }
+
+    if(!tokens){
+      box.innerHTML = `
+        <div class="song-map-hint">Redirect URI registered in your Spotify app: <code>${escapeAttr(getRedirectUri())}</code></div>
+        <button class="btn primary" id="spotifyLoginBtn">Log in with Spotify</button>
+        <button class="linklike" id="spotifyEditClientBtn">Use a different Client ID</button>
+      `;
+      document.getElementById('spotifyLoginBtn').addEventListener('click', spotifyLogin);
+      document.getElementById('spotifyEditClientBtn').addEventListener('click', () => { localStorage.removeItem('spotify_client_id'); renderSongMapBox(); });
+      return;
+    }
+
+    if(!r.spotifyTrackId){
+      box.innerHTML = `
+        <div class="song-map-connect">
+          <input type="text" id="spotifyInput" placeholder="Paste a Spotify track link">
+          <button class="btn primary" id="spotifyConnectBtn">Attach to routine</button>
+        </div>
+        <div class="song-map-hint">${spotifyProfile ? 'Logged in as ' + escapeAttr(spotifyProfile.display_name) + '. ' : ''}<button class="linklike" id="spotifyLogoutBtn">Log out</button></div>
+      `;
+      document.getElementById('spotifyConnectBtn').addEventListener('click', () => {
+        const id = parseSpotifyId(document.getElementById('spotifyInput').value);
+        if(!id){ showToast('Could not read a Spotify track link from that'); return; }
+        r.spotifyTrackId = id; saveRoutines(true); renderSongMapBox(); renderTimeline();
+      });
+      document.getElementById('spotifyLogoutBtn').addEventListener('click', spotifyLogout);
+      return;
+    }
+
+    box.innerHTML = `
+      <div class="song-map-controls">
+        <button class="btn primary" id="spotifyPlayBtn">${spotifyReady ? '▶ Play routine song' : 'Connecting device…'}</button>
+        <button class="btn" id="spotifyPauseBtn">Pause / resume</button>
+        <span id="spotifyPosDisplay">0:00</span>
+        <button class="btn danger" id="spotifyDetachBtn">Detach song</button>
+        <button class="linklike" id="spotifyLogoutBtn">Log out</button>
+      </div>
+      <div class="song-map-track" id="songMapTrack"></div>
+      <div class="song-map-nownext" id="songMapNowNext"></div>
+      <div class="song-map-hint">Tap a move's ⏱ time (in the timeline below) to jump Spotify straight there. Playback happens on this browser tab as a real Spotify Connect device — requires Premium.</div>
+    `;
+    document.getElementById('spotifyPlayBtn').addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, 0));
+    document.getElementById('spotifyPauseBtn').addEventListener('click', spotifyTogglePlay);
+    document.getElementById('spotifyDetachBtn').addEventListener('click', () => {
+      if(!confirm('Detach this song from the routine?')) return;
+      r.spotifyTrackId = null; saveRoutines(true); renderSongMapBox(); renderTimeline();
+    });
+    document.getElementById('spotifyLogoutBtn').addEventListener('click', spotifyLogout);
+    renderSongMapTrack();
+  }
+
+  function escapeAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+  function newSection(title){ return { id: uid('sec'), title: title || 'Section', items: [] }; }
+  function newRoutine(name){ return { id: uid('rt'), name: name || 'New routine', song:'', bpm:'', sections: [newSection('Intro')], spotifyTrackId: null, songDuration: null }; }
+  function activeRoutine(){ return routinesState.routines.find(r => r.id === routinesState.activeId); }
+
+  // ---------- Persistence ----------
+  const ROUTINES_KEY = 'styling-planner-routines-v2';
+  const LIBRARY_KEY = 'styling-planner-library-v2';
+  const OLD_KEY = 'styling-planner-routine-v1';
+
+  function saveRoutines(silent){
+    try{
+      localStorage.setItem(ROUTINES_KEY, JSON.stringify({ routines: routinesState.routines, activeId: routinesState.activeId, idCounter }));
+      if(!silent) showToast('Routine saved on this device');
+    }catch(e){ if(!silent) showToast('Could not save — storage unavailable'); }
+  }
+  function saveLibraryState(){
+    try{ localStorage.setItem(LIBRARY_KEY, JSON.stringify(libraryState)); }catch(e){}
+  }
+
+  function loadState(){
+    try{
+      const rawLib = localStorage.getItem(LIBRARY_KEY);
+      if(rawLib) libraryState = Object.assign({custom:[],mastery:{},favorites:[],videos:{}}, JSON.parse(rawLib));
+    }catch(e){}
+    try{
+      const raw = localStorage.getItem(ROUTINES_KEY);
+      if(raw){
+        const data = JSON.parse(raw);
+        if(data.routines && data.routines.length){
+          routinesState = { routines: data.routines, activeId: data.activeId || data.routines[0].id };
+          idCounter = data.idCounter || idCounter;
+          return;
+        }
+      }
+      const oldRaw = localStorage.getItem(OLD_KEY);
+      if(oldRaw){
+        const old = JSON.parse(oldRaw);
+        const r = newRoutine(old.routineName || 'Imported routine');
+        r.song = old.songName || ''; r.bpm = old.bpm || '';
+        r.sections = (old.sections && old.sections.length) ? old.sections : [newSection('Intro')];
+        libraryState.custom = old.customLibrary || libraryState.custom;
+        routinesState = { routines: [r], activeId: r.id };
+        idCounter = old.idCounter || idCounter;
+        return;
+      }
+    }catch(e){}
+    const r = newRoutine('My first routine');
+    routinesState = { routines: [r], activeId: r.id };
+  }
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function showToast(msg, undoable){
+    const t = document.getElementById('toast');
+    t.innerHTML = '';
+    const span = document.createElement('span'); span.textContent = msg; t.appendChild(span);
+    if(undoable){
+      const btn = document.createElement('button'); btn.textContent = 'Undo';
+      btn.addEventListener('click', () => { undoLast(); t.classList.remove('show'); });
+      t.appendChild(btn);
+    }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> t.classList.remove('show'), undoable ? 5000 : 1800);
+  }
+
+  function undoLast(){
+    if(!lastDeleted) return;
+    if(lastDeleted.type === 'item'){
+      const sec = sections.find(s=>s.id===lastDeleted.sectionId);
+      if(sec) sec.items.splice(Math.min(lastDeleted.index, sec.items.length), 0, lastDeleted.data);
+    } else if(lastDeleted.type === 'section'){
+      sections.splice(Math.min(lastDeleted.index, sections.length), 0, lastDeleted.data);
+    }
+    lastDeleted = null;
+    renderTimeline(); saveRoutines(true);
+  }
+
+  // ---------- Library helpers ----------
+  function allMoves(){ return LIBRARY.concat(libraryState.custom); }
+  function getMastery(id){ return libraryState.mastery[id] || 'new'; }
+  function isFavorite(id){ return libraryState.favorites.includes(id); }
+
+  function filteredLibraryMoves(){
+    const q = (document.getElementById('librarySearch').value || '').trim().toLowerCase();
+    return allMoves().filter(m => {
+      if(styleFilter !== 'all' && m.style !== styleFilter && m.style !== 'both') return false;
+      if(diffFilter !== 'all' && m.diff !== diffFilter) return false;
+      if(masteryFilter !== 'all' && getMastery(m.id) !== masteryFilter) return false;
+      if(favoritesOnly && !isFavorite(m.id)) return false;
+      if(q && !(m.name.toLowerCase().includes(q) || (m.desc||'').toLowerCase().includes(q) || m.cat.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  // ---------- Render: library ----------
+  function renderLibrary(){
+    const root = document.getElementById('library');
+    root.innerHTML = '';
+    const moves = filteredLibraryMoves();
+    CATEGORIES.forEach(cat => {
+      let inCat = moves.filter(m => m.cat === cat);
+      if(!inCat.length) return;
+      inCat = inCat.slice().sort((a,b) => (isFavorite(b.id)?1:0) - (isFavorite(a.id)?1:0));
+      const group = document.createElement('div');
+      group.className = 'cat-group';
+      const h = document.createElement('div');
+      h.className = 'cat-title';
+      h.innerHTML = cat + ' <span style="color:var(--ink-faint); font-weight:400;">(' + inCat.length + ')</span>';
+      group.appendChild(h);
+      inCat.forEach(m => group.appendChild(buildMoveCard(m)));
+      root.appendChild(group);
+    });
+    document.getElementById('libCount').textContent = moves.length + ' of ' + allMoves().length + ' moves shown';
+    if(!moves.length) root.innerHTML = '<div class="empty-hint">No moves match these filters.</div>';
+  }
+
+  function cycleMastery(id){
+    const order = ['new','drilling','solid'];
+    const cur = getMastery(id);
+    const next = order[(order.indexOf(cur)+1) % order.length];
+    if(next === 'new') delete libraryState.mastery[id]; else libraryState.mastery[id] = next;
+    saveLibraryState();
+    renderLibrary();
+  }
+
+  function toggleFavorite(id){
+    const i = libraryState.favorites.indexOf(id);
+    if(i>=0) libraryState.favorites.splice(i,1); else libraryState.favorites.push(id);
+    saveLibraryState();
+    renderLibrary();
+  }
+
+  function buildMoveCard(m){
+    const card = document.createElement('div');
+    card.className = 'move-card';
+    const mastery = getMastery(m.id);
+    const fav = isFavorite(m.id);
+    const personal = personalVideoFor(m.id);
+
+    card.innerHTML = `
+      <div class="move-top">
+        <div class="move-tag ${m.style}"></div>
+        <div class="move-body">
+          <div class="move-name-row">
+            <span class="move-name">${m.name}</span>
+            <span class="diff-badge ${m.diff||'int'}">${DIFF_LABEL[m.diff]||'Intermediate'}</span>
+          </div>
+          <div class="move-desc">${m.desc || ''}</div>
+          <div class="move-counts-row">
+            <span class="move-counts">${m.counts}-count</span>
+            ${personal
+              ? `<button class="move-video-toggle" data-action="toggle-video">&#9654; preview your video</button><button class="move-video-set" data-action="edit-video">change</button>`
+              : `<a class="move-watch" href="${ytUrl(m.yt)}" target="_blank" rel="noopener noreferrer">&#9654; watch on YouTube</a><button class="move-video-set" data-action="edit-video">+ add your own video</button>`
+            }
+          </div>
+          <div class="video-panel" data-video-panel></div>
+          <button class="mastery-pill ${mastery}" data-action="cycle-mastery">${mastery}</button>
+        </div>
+        <div class="move-side">
+          <button class="star-btn ${fav?'active':''}" data-action="fav" aria-label="Favorite">${fav?'★':'☆'}</button>
+          <button class="add-btn" data-action="add" aria-label="Add ${m.name} to timeline">+</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector('[data-action="add"]').addEventListener('click', () => addMoveToTimeline(m));
+    card.querySelector('[data-action="fav"]').addEventListener('click', () => toggleFavorite(m.id));
+    card.querySelector('[data-action="cycle-mastery"]').addEventListener('click', () => cycleMastery(m.id));
+
+    const watchLink = card.querySelector('.move-watch');
+    if(watchLink) watchLink.addEventListener('click', (e) => e.stopPropagation());
+
+    const videoBtn = card.querySelector('[data-action="edit-video"]');
+    if(videoBtn) videoBtn.addEventListener('click', () => { openVideoFormId = (openVideoFormId===m.id) ? null : m.id; renderVideoPanel(card, m); });
+
+    const toggleBtn = card.querySelector('[data-action="toggle-video"]');
+    if(toggleBtn) toggleBtn.addEventListener('click', () => {
+      const panel = card.querySelector('[data-video-panel]');
+      if(panel.querySelector('iframe, video')){ panel.innerHTML = ''; return; }
+      const p = personalVideoFor(m.id);
+      if(!p) return;
+      panel.innerHTML = p.type === 'youtube'
+        ? `<div class="video-embed"><iframe src="https://www.youtube.com/embed/${p.id}" loading="lazy" allow="encrypted-media" allowfullscreen></iframe></div>`
+        : `<div class="video-embed"><video controls playsinline src="${p.url}"></video></div>`;
+    });
+
+    if(openVideoFormId === m.id) renderVideoPanel(card, m);
+    return card;
+  }
+
+  function extractYouTubeId(input){
+    input = (input||'').trim();
+    const patterns = [/youtu\.be\/([\w-]{11})/, /youtube\.com\/watch\?v=([\w-]{11})/, /youtube\.com\/embed\/([\w-]{11})/, /youtube\.com\/shorts\/([\w-]{11})/];
+    for(const p of patterns){ const mm = input.match(p); if(mm) return mm[1]; }
+    if(/^[\w-]{11}$/.test(input)) return input;
+    return null;
+  }
+
+  function renderVideoPanel(card, m){
+    const panel = card.querySelector('[data-video-panel]');
+    if(openVideoFormId !== m.id){ return; }
+    const personal = personalVideoFor(m.id);
+    const currentYt = personal && personal.type === 'youtube' ? personal.id : '';
+    panel.innerHTML = `
+      <div class="video-form">
+        <input type="text" class="yt-link-input" placeholder="Paste a YouTube link or video ID" value="${escapeAttr(currentYt)}">
+        <button class="save">Save link</button>
+      </div>
+      <div class="video-form">
+        <label class="btn file-btn">&#128193; Choose from gallery<input type="file" accept="video/*" class="gallery-input" hidden></label>
+        ${personal ? '<button class="clear">Remove video</button>' : ''}
+      </div>
+      <div class="video-hint">A gallery video is saved only in this browser, on this device.</div>
+    `;
+    panel.querySelector('.save').addEventListener('click', async () => {
+      const val = panel.querySelector('.yt-link-input').value;
+      const id = extractYouTubeId(val);
+      if(!id){ showToast('Could not read a video from that link'); return; }
+      libraryState.videos[m.id] = id;
+      await clearLocalVideo(m.id);
+      saveLibraryState();
+      openVideoFormId = null;
+      renderLibrary();
+      showToast('Video saved for ' + m.name);
+    });
+    panel.querySelector('.gallery-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      try{
+        await idbSetVideo(m.id, file);
+        localVideoUrls[m.id] = URL.createObjectURL(file);
+        delete libraryState.videos[m.id];
+        saveLibraryState();
+        openVideoFormId = null;
+        renderLibrary();
+        showToast('Video added for ' + m.name);
+      }catch(err){ showToast('Could not save that video — storage may be full'); }
+    });
+    const clearBtn = panel.querySelector('.clear');
+    if(clearBtn) clearBtn.addEventListener('click', async () => {
+      delete libraryState.videos[m.id];
+      await clearLocalVideo(m.id);
+      saveLibraryState();
+      openVideoFormId = null;
+      renderLibrary();
+    });
+  }
+
+  function addMoveToTimeline(m, targetSection){
+    const target = targetSection || sections[sections.length-1] || (sections.push(newSection('Section 1')), sections[sections.length-1]);
+    target.items.push({ id: uid('item'), libMoveId: m.id, name: m.name, counts: m.counts, style: m.style, notes: '', yt: m.yt || null });
+    renderTimeline(); saveRoutines(true);
+    showToast(m.name + ' added to ' + target.title);
+  }
+
+  // ---------- Shuffle ----------
+  function sampleRandom(arr, n){
+    const copy = arr.slice(); const out = [];
+    for(let i=0; i<n && copy.length; i++){ out.push(copy.splice(Math.floor(Math.random()*copy.length),1)[0]); }
+    return out;
+  }
+  function generateShuffle(){
+    const pool = filteredLibraryMoves();
+    if(!pool.length){ showToast('No moves match the current filters'); return; }
+    const n = Math.min(Math.max(parseInt(document.getElementById('shuffleCount').value,10)||4, 1), pool.length);
+    shuffleResult = sampleRandom(pool, n);
+    renderShuffleResult();
+  }
+  function renderShuffleResult(){
+    const list = document.getElementById('shuffleList');
+    list.innerHTML = '';
+    shuffleResult.forEach((m, i) => {
+      const row = document.createElement('div');
+      row.className = 'shuffle-item';
+      row.innerHTML = `<span>${m.name} <span style="color:var(--ink-faint);">(${m.counts})</span></span><button data-i="${i}">&#8635; reroll</button>`;
+      row.querySelector('button').addEventListener('click', () => {
+        const pool = filteredLibraryMoves().filter(x => !shuffleResult.some(s=>s.id===x.id));
+        if(pool.length){ shuffleResult[i] = pool[Math.floor(Math.random()*pool.length)]; renderShuffleResult(); }
+      });
+      list.appendChild(row);
+    });
+    document.getElementById('shuffleAdd').style.display = shuffleResult.length ? 'inline-block' : 'none';
+  }
+  function addShuffleAsSection(){
+    if(!shuffleResult.length) return;
+    const sec = newSection('Shuffle combo');
+    shuffleResult.forEach(m => sec.items.push({ id: uid('item'), libMoveId: m.id, name: m.name, counts: m.counts, style: m.style, notes: '', yt: m.yt || null }));
+    sections.push(sec);
+    renderTimeline(); saveRoutines(true);
+    document.querySelector('.tabs button[data-tab="timeline"]')?.click();
+    showToast('Shuffle combo added as a new section');
+  }
+
+  // ---------- Render: timeline ----------
+  function renderTimeline(){
+    const root = document.getElementById('timeline');
+    root.innerHTML = '';
+    sections.forEach((sec, sIdx) => root.appendChild(buildSectionBlock(sec, sIdx)));
+    updateTotals();
+    renderRoutineVideoPanel();
+    renderSongMapTrack();
+  }
+
+  function renderRoutineVideoPanel(){
+    const panel = document.getElementById('routineVideoPanel');
+    const r = activeRoutine();
+    if(!r) return;
+    const key = 'routine-' + r.id;
+    const url = localVideoUrls[key];
+    panel.innerHTML = `
+      <div class="routine-video-box">
+        ${url
+          ? `<button class="btn" data-action="toggle">&#9654; preview routine video</button><button class="btn danger" data-action="remove">Remove</button>`
+          : `<label class="btn file-btn">&#128193; Attach a video from gallery<input type="file" accept="video/*" hidden data-action="upload"></label>`
+        }
+        <div data-player></div>
+      </div>
+    `;
+    const toggleBtn = panel.querySelector('[data-action="toggle"]');
+    if(toggleBtn) toggleBtn.addEventListener('click', () => {
+      const player = panel.querySelector('[data-player]');
+      if(player.querySelector('video')) player.innerHTML = '';
+      else player.innerHTML = `<div class="video-embed"><video controls playsinline src="${url}"></video></div>`;
+    });
+    const removeBtn = panel.querySelector('[data-action="remove"]');
+    if(removeBtn) removeBtn.addEventListener('click', async () => {
+      await clearLocalVideo(key);
+      renderRoutineVideoPanel();
+      showToast('Routine video removed');
+    });
+    const uploadInput = panel.querySelector('[data-action="upload"]');
+    if(uploadInput) uploadInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      try{
+        await idbSetVideo(key, file);
+        localVideoUrls[key] = URL.createObjectURL(file);
+        renderRoutineVideoPanel();
+        showToast('Routine video attached');
+      }catch(err){ showToast('Could not save that video — storage may be full'); }
+    });
+  }
+
+  function buildSectionBlock(sec, sIdx){
+    const block = document.createElement('div');
+    block.className = 'section-block';
+    const head = document.createElement('div');
+    head.className = 'section-head';
+    const countText = sec.items.reduce((a,i)=>a+Number(i.counts||0),0);
+    head.innerHTML = `
+      <input type="text" value="${escapeAttr(sec.title)}" aria-label="Section name">
+      <span class="section-count">${countText} counts</span>
+      <button class="icon-btn" title="Move section up">&#8593;</button>
+      <button class="icon-btn" title="Move section down">&#8595;</button>
+      <button class="icon-btn" title="Delete section">&times;</button>
+    `;
+    const titleInput = head.querySelector('input');
+    titleInput.addEventListener('input', () => { sec.title = titleInput.value; saveRoutines(true); });
+    const [upBtn, downBtn, delBtn] = head.querySelectorAll('.icon-btn');
+    upBtn.addEventListener('click', () => moveSection(sIdx, -1));
+    downBtn.addEventListener('click', () => moveSection(sIdx, 1));
+    delBtn.addEventListener('click', () => {
+      if(sections.length === 1){ sec.items = []; renderTimeline(); saveRoutines(true); return; }
+      lastDeleted = { type:'section', index: sIdx, data: JSON.parse(JSON.stringify(sec)) };
+      sections.splice(sIdx,1);
+      renderTimeline(); saveRoutines(true);
+      showToast('Section removed', true);
+    });
+    block.appendChild(head);
+
+    const list = document.createElement('div');
+    list.className = 'moves-list';
+    if(!sec.items.length){
+      list.innerHTML = '<div class="empty-hint">No moves yet — tap moves in the library to add them here.</div>';
+    } else {
+      sec.items.forEach((item, iIdx) => list.appendChild(buildTimelineItem(sec, item, iIdx)));
+    }
+    block.appendChild(list);
+    return block;
+  }
+
+  function buildTimelineItem(sec, item, iIdx){
+    const row = document.createElement('div');
+    row.className = 'timeline-item';
+    row.draggable = true;
+    row.dataset.secId = sec.id; row.dataset.itemId = item.id;
+    const personal = item.libMoveId ? personalVideoFor(item.libMoveId) : null;
+
+    row.innerHTML = `
+      <div class="count-badge">${item.counts || '–'}</div>
+      <div class="ti-main">
+        <div class="ti-name-row">
+          <span class="ti-style-dot ${item.style || 'both'}"></span>
+          <span class="ti-name">${item.name}</span>
+          ${personal ? `<span class="move-video-toggle" data-action="toggle-video">&#9654; your video</span>` : (item.yt ? `<a class="move-watch" href="${ytUrl(item.yt)}" target="_blank" rel="noopener noreferrer">&#9654; watch</a>` : '')}
+        </div>
+        <div data-video-panel></div>
+        ${item.time!=null
+          ? `<button class="ti-time-btn set" data-action="play-time">⏱ ${formatTime(item.time)}</button><button class="ti-time-edit" data-action="edit-time" title="Edit time">✎</button>`
+          : `<button class="ti-time-btn" data-action="edit-time">+ set time in song</button>`
+        }
+        <div data-time-panel></div>
+        <textarea class="ti-notes" placeholder="Notes: styling detail, timing cue, floorcraft…">${item.notes || ''}</textarea>
+      </div>
+      <div class="ti-actions">
+        <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+        <button class="up" title="Move up">&#8593;</button>
+        <button class="down" title="Move down">&#8595;</button>
+        <button class="remove" title="Remove">&times;</button>
+      </div>
+    `;
+
+    row.querySelector('.ti-notes').addEventListener('input', (e) => { item.notes = e.target.value; saveRoutines(true); });
+    row.querySelector('.up').addEventListener('click', () => moveItem(sec, iIdx, -1));
+    row.querySelector('.down').addEventListener('click', () => moveItem(sec, iIdx, 1));
+    row.querySelector('.remove').addEventListener('click', () => {
+      lastDeleted = { type:'item', sectionId: sec.id, index: iIdx, data: JSON.parse(JSON.stringify(item)) };
+      sec.items.splice(iIdx,1); renderTimeline(); saveRoutines(true);
+      showToast('Move removed', true);
+    });
+    const playTimeBtn = row.querySelector('[data-action="play-time"]');
+    if(playTimeBtn) playTimeBtn.addEventListener('click', () => {
+      const r = activeRoutine();
+      if(!r.spotifyTrackId){ showToast('Attach a Spotify track to this routine first'); return; }
+      if(!getStoredTokens()){ showToast('Log in to Spotify above first'); return; }
+      spotifyPlayTrackAt(r.spotifyTrackId, item.time*1000);
+    });
+    row.querySelector('[data-action="edit-time"]').addEventListener('click', () => {
+      const panel = row.querySelector('[data-time-panel]');
+      if(panel.querySelector('.time-form')){ panel.innerHTML = ''; return; }
+      panel.innerHTML = `
+        <div class="time-form">
+          <input type="text" placeholder="mm:ss" value="${item.time!=null?formatTime(item.time):''}">
+          <button class="use-clock">Use current position</button>
+          <button class="save">Save</button>
+          ${item.time!=null ? '<button class="clear">Clear</button>' : ''}
+        </div>
+      `;
+      panel.querySelector('.use-clock').addEventListener('click', () => { panel.querySelector('input').value = formatTime(spotifyReady ? currentPlaybackMs()/1000 : 0); });
+      panel.querySelector('.save').addEventListener('click', () => {
+        const v = parseTimeInput(panel.querySelector('input').value);
+        if(v==null){ showToast('Enter a time like 1:24'); return; }
+        item.time = v; saveRoutines(true); renderTimeline();
+      });
+      const clearBtn = panel.querySelector('.clear');
+      if(clearBtn) clearBtn.addEventListener('click', () => { item.time = null; saveRoutines(true); renderTimeline(); });
+    });
+    const watchA = row.querySelector('.move-watch');
+    if(watchA) watchA.addEventListener('click', (e) => e.stopPropagation());
+    const toggleV = row.querySelector('[data-action="toggle-video"]');
+    if(toggleV) toggleV.addEventListener('click', () => {
+      const panel = row.querySelector('[data-video-panel]');
+      if(panel.querySelector('iframe, video')){ panel.innerHTML = ''; return; }
+      const p = item.libMoveId ? personalVideoFor(item.libMoveId) : null;
+      if(!p) return;
+      panel.innerHTML = p.type === 'youtube'
+        ? `<div class="video-embed"><iframe src="https://www.youtube.com/embed/${p.id}" loading="lazy" allow="encrypted-media" allowfullscreen></iframe></div>`
+        : `<div class="video-embed"><video controls playsinline src="${p.url}"></video></div>`;
+    });
+
+    row.addEventListener('dragstart', (e) => { dragCtx = { secId: sec.id, itemId: item.id }; row.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragCtx = null; });
+    row.addEventListener('dragover', (e) => e.preventDefault());
+    row.addEventListener('drop', (e) => { e.preventDefault(); if(dragCtx) handleDrop(dragCtx, sec.id, item.id); });
+    return row;
+  }
+
+  function findItem(secId, itemId){
+    const s = sections.find(x=>x.id===secId); if(!s) return null;
+    const i = s.items.findIndex(x=>x.id===itemId); if(i<0) return null;
+    return { sec: s, idx: i };
+  }
+  function handleDrop(from, toSecId, toItemId){
+    const src = findItem(from.secId, from.itemId); const dst = findItem(toSecId, toItemId);
+    if(!src || !dst) return;
+    const [moved] = src.sec.items.splice(src.idx,1);
+    const dstIdx = dst.sec.items.findIndex(x=>x.id===toItemId);
+    dst.sec.items.splice(dstIdx, 0, moved);
+    renderTimeline(); saveRoutines(true);
+  }
+  function moveItem(sec, idx, dir){
+    const newIdx = idx + dir; if(newIdx < 0 || newIdx >= sec.items.length) return;
+    const [it] = sec.items.splice(idx,1); sec.items.splice(newIdx,0,it);
+    renderTimeline(); saveRoutines(true);
+  }
+  function moveSection(idx, dir){
+    const newIdx = idx + dir; if(newIdx < 0 || newIdx >= sections.length) return;
+    const [s] = sections.splice(idx,1); sections.splice(newIdx,0,s);
+    renderTimeline(); saveRoutines(true);
+  }
+
+  function updateTotals(){
+    let moves = 0, counts = 0;
+    sections.forEach(s => { moves += s.items.length; s.items.forEach(i => counts += Number(i.counts||0)); });
+    document.getElementById('totalMoves').textContent = moves;
+    document.getElementById('totalCounts').textContent = counts;
+    const bpm = Number(document.getElementById('bpm').value);
+    const timeEl = document.getElementById('totalTime');
+    if(bpm > 0 && counts > 0){
+      const seconds = (counts / bpm) * 60;
+      const mins = Math.floor(seconds/60); const secs = Math.round(seconds%60);
+      timeEl.textContent = mins + 'm ' + (secs<10?'0':'') + secs + 's';
+    } else { timeEl.textContent = '—'; }
+    document.getElementById('metroCount').textContent = bpm ? '–' : '–';
+  }
+
+  // ---------- Routine switcher ----------
+  function populateRoutineSelect(){
+    const sel = document.getElementById('routineSelect');
+    sel.innerHTML = '';
+    routinesState.routines.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.name || 'Untitled routine';
+      if(r.id === routinesState.activeId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  function loadActiveRoutineIntoHeader(){
+    const r = activeRoutine();
+    document.getElementById('routineName').value = r.name || '';
+    document.getElementById('songName').value = r.song || '';
+    document.getElementById('bpm').value = r.bpm || '';
+    sections = r.sections;
+  }
+  function switchRoutine(id){
+    routinesState.activeId = id;
+    loadActiveRoutineIntoHeader();
+    populateRoutineSelect();
+    renderSongMapBox();
+    renderTimeline();
+    saveRoutines(true);
+  }
+
+  // ---------- Practice mode ----------
+  function buildPracticeList(){
+    const list = [];
+    sections.forEach(sec => sec.items.forEach(item => list.push({ sec, item })));
+    return list;
+  }
+  function openPractice(){
+    practiceList = buildPracticeList();
+    if(!practiceList.length){ showToast('Add some moves to the timeline first'); return; }
+    practiceIdx = 0;
+    document.getElementById('practiceOverlay').classList.add('open');
+    renderPracticeStep();
+    document.addEventListener('keydown', practiceKeyHandler);
+  }
+  function closePractice(){
+    document.getElementById('practiceOverlay').classList.remove('open');
+    document.removeEventListener('keydown', practiceKeyHandler);
+  }
+  function practiceKeyHandler(e){
+    if(e.key === 'ArrowRight') practiceStep(1);
+    else if(e.key === 'ArrowLeft') practiceStep(-1);
+    else if(e.key === 'Escape') closePractice();
+  }
+  function practiceStep(dir){
+    practiceIdx = Math.max(0, Math.min(practiceList.length-1, practiceIdx+dir));
+    renderPracticeStep();
+  }
+  function renderPracticeStep(){
+    const { sec, item } = practiceList[practiceIdx];
+    document.getElementById('practiceProgress').textContent = (practiceIdx+1) + ' of ' + practiceList.length;
+    document.getElementById('practiceSection').textContent = sec.title;
+    document.getElementById('practiceCount').textContent = item.counts || '–';
+    document.getElementById('practiceName').textContent = item.name;
+    const libMove = item.libMoveId ? allMoves().find(m=>m.id===item.libMoveId) : null;
+    document.getElementById('practiceDesc').textContent = libMove ? libMove.desc || '' : '';
+    document.getElementById('practiceNotes').textContent = item.notes || '';
+    const watchA = document.getElementById('practiceWatch');
+    const personal = item.libMoveId ? personalVideoFor(item.libMoveId) : null;
+    const wrap = document.getElementById('practiceVideoWrap');
+    if(personal){
+      wrap.innerHTML = personal.type === 'youtube'
+        ? `<div class="practice-video"><iframe src="https://www.youtube.com/embed/${personal.id}" loading="lazy" allow="encrypted-media" allowfullscreen></iframe></div>`
+        : `<div class="practice-video"><video controls playsinline src="${personal.url}"></video></div>`;
+      watchA.style.display = 'none';
+    } else {
+      wrap.innerHTML = '';
+      if(item.yt){ watchA.href = ytUrl(item.yt); watchA.style.display = 'inline-block'; } else { watchA.style.display = 'none'; }
+    }
+  }
+  let touchStartX = null;
+  document.getElementById('practiceOverlay').addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  document.getElementById('practiceOverlay').addEventListener('touchend', (e) => {
+    if(touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if(Math.abs(dx) > 40) practiceStep(dx < 0 ? 1 : -1);
+    touchStartX = null;
+  });
+
+  // ---------- Metronome ----------
+  let audioCtx = null, metronomeRunning = false, metronomeTimer = null, beatCount = 0, nextTickTime = 0;
+  function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+  function playClick(accent){
+    ensureAudio();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.frequency.value = accent ? 1500 : 1000;
+    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.09);
+  }
+  function startMetronome(){
+    const bpm = Number(document.getElementById('bpm').value) || 96;
+    ensureAudio(); if(audioCtx.state === 'suspended') audioCtx.resume();
+    metronomeRunning = true; beatCount = 0; nextTickTime = audioCtx.currentTime;
+    scheduleTick(60/bpm);
+    document.getElementById('metroToggle').innerHTML = '&#9724;';
+    document.getElementById('metroBar').classList.add('running');
+  }
+  function scheduleTick(intervalSec){
+    if(!metronomeRunning) return;
+    const now = audioCtx.currentTime;
+    if(nextTickTime <= now + 0.05){
+      beatCount = (beatCount % 8) + 1;
+      playClick(beatCount === 1);
+      document.getElementById('metroCount').textContent = beatCount;
+      nextTickTime += intervalSec;
+    }
+    metronomeTimer = setTimeout(() => scheduleTick(intervalSec), 20);
+  }
+  function stopMetronome(){
+    metronomeRunning = false; clearTimeout(metronomeTimer);
+    document.getElementById('metroToggle').innerHTML = '&#9654;';
+    document.getElementById('metroBar').classList.remove('running');
+    document.getElementById('metroCount').textContent = '–';
+  }
+
+  // ---------- Export & Print ----------
+  function exportText(){
+    const r = activeRoutine();
+    let out = (r.name || 'Untitled routine') + '\n';
+    if(r.song) out += 'Song: ' + r.song + '\n';
+    if(r.bpm) out += 'Tempo: ' + r.bpm + ' bpm\n';
+    out += '\n';
+    sections.forEach(sec => {
+      out += '== ' + sec.title + ' ==\n';
+      if(!sec.items.length) out += '  (no moves)\n';
+      sec.items.forEach(item => {
+        out += '  [' + (item.counts||'-') + ']' + (item.time!=null ? ' @' + formatTime(item.time) : '') + ' ' + item.name;
+        if(item.notes) out += ' — ' + item.notes;
+        out += '\n';
+      });
+      out += '\n';
+    });
+    const blob = new Blob([out], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = ((r.name||'routine').replace(/[^a-z0-9]+/gi,'_') || 'routine') + '.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 500);
+    showToast('Exported as text file');
+  }
+  function preparePrintSheet(){
+    const r = activeRoutine();
+    let html = '<h1>' + escapeAttr(r.name||'Untitled routine') + '</h1>';
+    if(r.song) html += '<p class="print-meta">Song: ' + escapeAttr(r.song) + '</p>';
+    if(r.bpm) html += '<p class="print-meta">Tempo: ' + escapeAttr(r.bpm) + ' bpm</p>';
+    sections.forEach(sec => {
+      html += '<h2>' + escapeAttr(sec.title) + '</h2><ol>';
+      sec.items.forEach(it => {
+        html += '<li><strong>[' + (it.counts||'-') + ']</strong>' + (it.time!=null ? ' <em>@' + formatTime(it.time) + '</em>' : '') + ' ' + escapeAttr(it.name) + (it.notes ? ' — ' + escapeAttr(it.notes) : '') + '</li>';
+      });
+      html += '</ol>';
+    });
+    document.getElementById('printSheet').innerHTML = html;
+  }
+
+  // ---------- Wiring ----------
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const which = btn.dataset.tab;
+      document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.dataset.pane === which));
+    });
+  });
+
+  document.getElementById('librarySearch').addEventListener('input', renderLibrary);
+  document.getElementById('filtersToggle').addEventListener('click', () => document.getElementById('moreFilters').classList.toggle('open'));
+  document.getElementById('favToggle').addEventListener('click', (e) => {
+    favoritesOnly = !favoritesOnly;
+    e.target.classList.toggle('active', favoritesOnly);
+    renderLibrary();
+  });
+  document.querySelectorAll('.style-filter button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.style-filter button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); styleFilter = btn.dataset.style; renderLibrary();
+    });
+  });
+  document.querySelectorAll('[data-diff]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-diff]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); diffFilter = btn.dataset.diff; renderLibrary();
+    });
+  });
+  document.querySelectorAll('[data-mastery]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-mastery]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); masteryFilter = btn.dataset.mastery; renderLibrary();
+    });
+  });
+
+  document.getElementById('shuffleGenerate').addEventListener('click', generateShuffle);
+  document.getElementById('shuffleAdd').addEventListener('click', addShuffleAsSection);
+
+  document.getElementById('addCustomBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('customName');
+    const countsInput = document.getElementById('customCounts');
+    const diffSel = document.getElementById('customDiff');
+    const name = nameInput.value.trim();
+    if(!name){ showToast('Give the move a name first'); return; }
+    const counts = parseInt(countsInput.value,10) || 8;
+    const m = { id: uid('custom'), cat:'Footwork', style:'both', diff:diffSel.value, name, counts, desc:'Custom move', yt: name + ' salsa bachata styling tutorial' };
+    libraryState.custom.push(m);
+    nameInput.value = ''; countsInput.value = '';
+    saveLibraryState(); renderLibrary();
+    showToast(name + ' added to library');
+  });
+
+  document.getElementById('addSectionTop').addEventListener('click', addSectionHandler);
+  document.getElementById('addSectionBottom').addEventListener('click', addSectionHandler);
+  function addSectionHandler(){
+    sections.push(newSection('Section ' + (sections.length+1)));
+    renderTimeline(); saveRoutines(true);
+    document.querySelector('.tabs button[data-tab="timeline"]')?.click();
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => saveRoutines(false));
+  document.getElementById('exportBtn').addEventListener('click', exportText);
+  document.getElementById('printBtn').addEventListener('click', () => { preparePrintSheet(); window.print(); });
+  document.getElementById('practiceBtn').addEventListener('click', openPractice);
+  document.getElementById('routineVideoBtn').addEventListener('click', () => {
+    const key = 'routine-' + activeRoutine().id;
+    if(localVideoUrls[key]){
+      const player = document.querySelector('#routineVideoPanel [data-player]');
+      if(player.querySelector('video')) player.innerHTML = '';
+      else player.innerHTML = `<div class="video-embed"><video controls playsinline src="${localVideoUrls[key]}"></video></div>`;
+    } else {
+      document.querySelector('#routineVideoPanel input[type=file]')?.click();
+    }
+  });
+  document.getElementById('practiceClose').addEventListener('click', closePractice);
+  document.getElementById('practicePrev').addEventListener('click', () => practiceStep(-1));
+  document.getElementById('practiceNext').addEventListener('click', () => practiceStep(1));
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if(confirm('Clear the whole routine? This cannot be undone.')){
+      const r = activeRoutine();
+      r.sections = [newSection('Intro')];
+      sections = r.sections;
+      renderTimeline(); saveRoutines(true);
+    }
+  });
+
+  document.getElementById('metroToggle').addEventListener('click', () => { metronomeRunning ? stopMetronome() : startMetronome(); });
+
+  document.getElementById('routineSelect').addEventListener('change', (e) => switchRoutine(e.target.value));
+  document.getElementById('newRoutineBtn').addEventListener('click', () => {
+    const r = newRoutine('New routine ' + (routinesState.routines.length+1));
+    routinesState.routines.push(r);
+    switchRoutine(r.id);
+    showToast('New routine created');
+  });
+  document.getElementById('dupRoutineBtn').addEventListener('click', () => {
+    const cur = activeRoutine();
+    const copy = JSON.parse(JSON.stringify(cur));
+    copy.id = uid('rt'); copy.name = (cur.name||'Routine') + ' (copy)';
+    routinesState.routines.push(copy);
+    switchRoutine(copy.id);
+    showToast('Routine duplicated');
+  });
+  document.getElementById('delRoutineBtn').addEventListener('click', async () => {
+    if(routinesState.routines.length === 1){ showToast('At least one routine has to stay'); return; }
+    const cur = activeRoutine();
+    if(!confirm('Delete "' + (cur.name||'this routine') + '"? This cannot be undone.')) return;
+    await clearLocalVideo('routine-' + cur.id);
+    routinesState.routines = routinesState.routines.filter(r => r.id !== cur.id);
+    switchRoutine(routinesState.routines[0].id);
+    showToast('Routine deleted');
+  });
+
+  ['routineName','songName','bpm'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const r = activeRoutine();
+      r.name = document.getElementById('routineName').value;
+      r.song = document.getElementById('songName').value;
+      r.bpm = document.getElementById('bpm').value;
+      if(id === 'routineName') populateRoutineSelect();
+      saveRoutines(true); updateTotals();
+    });
+  });
+
+  // ---------- Init ----------
+  async function init(){
+    loadState();
+    await preloadLocalVideos();
+    await handleAuthCallback();
+    populateRoutineSelect();
+    loadActiveRoutineIntoHeader();
+    renderSongMapBox();
+    renderLibrary();
+    renderTimeline();
+    if(getStoredTokens()){
+      await fetchSpotifyProfile();
+      renderSongMapBox();
+      await sdkReadyPromise;
+      await initSpotifyPlayer();
+    }
+  }
+  init();
+
+})();
+</script>
+</body>
+</html>
