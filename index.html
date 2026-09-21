@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://sdk.scdn.co/spotify-player.js"></script>
 <style>
   :root{
     --wood-950:#1a1210;
@@ -559,12 +558,11 @@
   let practiceIdx = 0;
   let openVideoFormId = null;
   // Spotify auth/playback state (real Web API + Web Playback SDK — requires self-hosting, not the Claude sandbox)
-  let spotifyPlayer = null, spotifyDeviceId = null, spotifyReady = false, spotifyProfile = null;
-  let lastKnownPositionMs = 0, lastKnownTimestamp = 0, spotifyIsPaused = true, spotifyDurationMs = 0;
-  let spotifyPollTimer = null;
-  let sdkReadyResolve; const sdkReadyPromise = new Promise(res => { sdkReadyResolve = res; });
-  window.onSpotifyWebPlaybackSDKReady = () => { sdkReadyResolve(); };
-  const SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state';
+  let spotifyProfile = null;
+  let spotifyDevices = [];
+  let currentPositionMs = 0, currentDurationMs = 0, currentIsPlaying = false, lastPollTimestamp = 0;
+  let devicePollTimer = null;
+  const SPOTIFY_SCOPES = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state';
 
   function uid(prefix){ return prefix + (idCounter++); }
   function ytUrl(query){ return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query); }
@@ -663,9 +661,8 @@
   }
   function spotifyLogout(){
     localStorage.removeItem('spotify_tokens');
-    spotifyProfile = null; spotifyReady = false;
-    clearInterval(spotifyPollTimer);
-    if(spotifyPlayer){ spotifyPlayer.disconnect(); spotifyPlayer = null; }
+    spotifyProfile = null;
+    clearInterval(devicePollTimer);
     renderSongMapBox();
   }
   async function fetchSpotifyProfile(){
@@ -674,52 +671,68 @@
     try{ const res = await fetch('https://api.spotify.com/v1/me', { headers:{'Authorization':'Bearer '+token} }); if(res.ok) spotifyProfile = await res.json(); }catch(e){}
   }
 
-  // ---------- Spotify Web Playback SDK (creates a real, controllable device in this browser tab) ----------
-  async function initSpotifyPlayer(){
-    spotifyPlayer = new Spotify.Player({
-      name: 'Styling Planner',
-      getOAuthToken: cb => { getValidAccessToken().then(t => cb(t)); },
-      volume: 0.7
-    });
-    spotifyPlayer.addListener('ready', ({device_id}) => {
-      spotifyDeviceId = device_id; spotifyReady = true;
-      clearInterval(spotifyPollTimer);
-      spotifyPollTimer = setInterval(() => renderSongMapTrack(), 500);
-      renderSongMapBox();
-    });
-    spotifyPlayer.addListener('not_ready', () => { spotifyReady = false; });
-    spotifyPlayer.addListener('player_state_changed', (state) => {
-      if(!state) return;
-      lastKnownPositionMs = state.position; lastKnownTimestamp = Date.now();
-      spotifyIsPaused = state.paused; spotifyDurationMs = state.duration;
-      renderSongMapTrack();
-    });
-    spotifyPlayer.addListener('initialization_error', ({message}) => showToast('Spotify init error: ' + message));
-    spotifyPlayer.addListener('authentication_error', () => showToast('Spotify session expired — log in again'));
-    spotifyPlayer.addListener('account_error', () => showToast('Playback control needs Spotify Premium'));
-    await spotifyPlayer.connect();
+  // ---------- Spotify Connect device control (remote-controls Spotify wherever it's already open — phone, desktop, speaker; works on every platform, unlike the in-browser Web Playback SDK which Spotify restricts to desktop browsers only) ----------
+  function getSelectedDeviceId(){ return localStorage.getItem('spotify_device_id') || null; }
+  function setSelectedDeviceId(id){ localStorage.setItem('spotify_device_id', id); }
+  async function fetchDevices(){
+    const token = await getValidAccessToken();
+    if(!token) return [];
+    try{
+      const res = await fetch('https://api.spotify.com/v1/me/player/devices', { headers:{'Authorization':'Bearer '+token} });
+      const data = await res.json();
+      spotifyDevices = data.devices || [];
+    }catch(e){ spotifyDevices = []; }
+    return spotifyDevices;
   }
-  function currentPlaybackMs(){ return lastKnownPositionMs + (spotifyIsPaused ? 0 : (Date.now()-lastKnownTimestamp)); }
+  async function pollPlaybackState(){
+    const token = await getValidAccessToken();
+    if(!token) return;
+    try{
+      const res = await fetch('https://api.spotify.com/v1/me/player', { headers:{'Authorization':'Bearer '+token} });
+      if(res.status === 204){ currentIsPlaying = false; return; }
+      if(!res.ok) return;
+      const data = await res.json();
+      if(!data) return;
+      currentPositionMs = data.progress_ms || 0;
+      lastPollTimestamp = Date.now();
+      currentIsPlaying = !!data.is_playing;
+      if(data.item) currentDurationMs = data.item.duration_ms;
+      renderSongMapTrack();
+    }catch(e){}
+  }
+  function currentPlaybackMs(){ return currentPositionMs + (currentIsPlaying ? (Date.now()-lastPollTimestamp) : 0); }
   async function spotifyPlayTrackAt(trackId, ms){
-    if(!spotifyReady){ showToast('Spotify device not ready yet'); return; }
+    const deviceId = getSelectedDeviceId();
+    if(!deviceId){ showToast('Pick a Spotify device first'); return; }
     const token = await getValidAccessToken();
     try{
-      const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
+      const res = await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + deviceId, {
         method:'PUT', headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
         body: JSON.stringify({ uris:['spotify:track:'+trackId], position_ms: Math.round(ms||0) })
       });
       if(res.status === 403) showToast('Playback control needs Spotify Premium');
+      else if(res.status === 404) showToast('That device is no longer active — hit Refresh devices');
+      else setTimeout(pollPlaybackState, 400);
     }catch(e){ showToast('Could not start playback'); }
   }
-  async function spotifyTogglePlay(){ if(spotifyPlayer) await spotifyPlayer.togglePlay(); }
+  async function spotifyTogglePlay(){
+    const deviceId = getSelectedDeviceId();
+    if(!deviceId) return;
+    const token = await getValidAccessToken();
+    const endpoint = currentIsPlaying ? 'pause' : 'play';
+    try{
+      await fetch('https://api.spotify.com/v1/me/player/' + endpoint + '?device_id=' + deviceId, { method:'PUT', headers:{'Authorization':'Bearer '+token} });
+      setTimeout(pollPlaybackState, 400);
+    }catch(e){}
+  }
 
   function renderSongMapTrack(){
     const track = document.getElementById('songMapTrack');
     if(!track) return;
     const r = activeRoutine();
     const flat = buildPracticeList().map(x=>x.item).filter(it => it.time != null);
-    const totalMs = spotifyDurationMs || ((flat.reduce((m,it)=>Math.max(m,it.time), 0) + 10) * 1000);
-    const elapsedMs = spotifyReady ? currentPlaybackMs() : 0;
+    const totalMs = currentDurationMs || ((flat.reduce((m,it)=>Math.max(m,it.time), 0) + 10) * 1000);
+    const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
     track.innerHTML = '';
     flat.forEach(it => {
       const pct = Math.min(100, (it.time*1000/totalMs)*100);
@@ -750,7 +763,7 @@
       }
     }
     const posEl = document.getElementById('spotifyPosDisplay');
-    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (spotifyDurationMs ? ' / ' + formatTime(spotifyDurationMs/1000) : '');
+    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (currentDurationMs ? ' / ' + formatTime(currentDurationMs/1000) : '');
   }
 
   function renderSongMapBox(){
@@ -812,7 +825,11 @@
 
     box.innerHTML = `
       <div class="song-map-controls">
-        <button class="btn primary" id="spotifyPlayBtn">${spotifyReady ? '▶ Play routine song' : 'Connecting device…'}</button>
+        <select id="deviceSelect"><option value="">Loading devices…</option></select>
+        <button class="btn" id="refreshDevicesBtn">&#8635; Refresh devices</button>
+      </div>
+      <div class="song-map-controls">
+        <button class="btn primary" id="spotifyPlayBtn">▶ Play routine song</button>
         <button class="btn" id="spotifyPauseBtn">Pause / resume</button>
         <span id="spotifyPosDisplay">0:00</span>
         <button class="btn danger" id="spotifyDetachBtn">Detach song</button>
@@ -820,8 +837,30 @@
       </div>
       <div class="song-map-track" id="songMapTrack"></div>
       <div class="song-map-nownext" id="songMapNowNext"></div>
-      <div class="song-map-hint">Tap a move's ⏱ time (in the timeline below) to jump Spotify straight there. Playback happens on this browser tab as a real Spotify Connect device — requires Premium.</div>
+      <div class="song-map-hint">Open Spotify on any device (phone app, desktop, speaker) and hit play once so it shows up below, then pick it here. This remote-controls that device — it works everywhere, including phones, since Spotify only lets a page play audio itself on desktop browsers.</div>
     `;
+    async function populateDevices(){
+      const sel = document.getElementById('deviceSelect');
+      if(!sel) return;
+      const devices = await fetchDevices();
+      sel.innerHTML = '';
+      if(!devices.length){
+        sel.innerHTML = '<option value="">No devices found — open Spotify and press play</option>';
+        return;
+      }
+      devices.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id; opt.textContent = d.name + (d.is_active ? ' (active)' : '');
+        sel.appendChild(opt);
+      });
+      const stored = getSelectedDeviceId();
+      const activeDevice = devices.find(d => d.is_active);
+      const pick = devices.find(d => d.id === stored) ? stored : (activeDevice ? activeDevice.id : devices[0].id);
+      sel.value = pick;
+      setSelectedDeviceId(pick);
+    }
+    document.getElementById('deviceSelect').addEventListener('change', (e) => setSelectedDeviceId(e.target.value));
+    document.getElementById('refreshDevicesBtn').addEventListener('click', populateDevices);
     document.getElementById('spotifyPlayBtn').addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, 0));
     document.getElementById('spotifyPauseBtn').addEventListener('click', spotifyTogglePlay);
     document.getElementById('spotifyDetachBtn').addEventListener('click', () => {
@@ -829,6 +868,10 @@
       r.spotifyTrackId = null; saveRoutines(true); renderSongMapBox(); renderTimeline();
     });
     document.getElementById('spotifyLogoutBtn').addEventListener('click', spotifyLogout);
+    populateDevices();
+    clearInterval(devicePollTimer);
+    devicePollTimer = setInterval(pollPlaybackState, 1500);
+    pollPlaybackState();
     renderSongMapTrack();
   }
 
@@ -1273,7 +1316,7 @@
           ${item.time!=null ? '<button class="clear">Clear</button>' : ''}
         </div>
       `;
-      panel.querySelector('.use-clock').addEventListener('click', () => { panel.querySelector('input').value = formatTime(spotifyReady ? currentPlaybackMs()/1000 : 0); });
+      panel.querySelector('.use-clock').addEventListener('click', () => { panel.querySelector('input').value = formatTime(getSelectedDeviceId() ? currentPlaybackMs()/1000 : 0); });
       panel.querySelector('.save').addEventListener('click', () => {
         const v = parseTimeInput(panel.querySelector('input').value);
         if(v==null){ showToast('Enter a time like 1:24'); return; }
@@ -1636,15 +1679,10 @@
     await handleAuthCallback();
     populateRoutineSelect();
     loadActiveRoutineIntoHeader();
+    if(getStoredTokens()) await fetchSpotifyProfile();
     renderSongMapBox();
     renderLibrary();
     renderTimeline();
-    if(getStoredTokens()){
-      await fetchSpotifyProfile();
-      renderSongMapBox();
-      await sdkReadyPromise;
-      await initSpotifyPlayer();
-    }
   }
   init();
 
