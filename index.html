@@ -167,10 +167,11 @@
   .song-map-controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:0.8rem; color:var(--ink-dim); }
   .song-map-controls input{ width:70px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:0.8rem; }
   #spotifyPosDisplay{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--brass-bright); }
-  .song-map-track{ position:relative; height:54px; background:var(--wood-800); border-radius:var(--radius-sm); margin-bottom:8px; }
-  .song-map-marker{ position:absolute; top:0; bottom:0; width:2px; background:var(--brass); cursor:pointer; }
-  .song-map-marker .marker-label{ position:absolute; top:-2px; left:4px; font-size:0.62rem; color:var(--ink-dim); white-space:nowrap; background:var(--wood-900); padding:1px 4px; border-radius:2px; }
-  .song-map-playhead{ position:absolute; top:0; bottom:0; width:2px; background:var(--mahogany); pointer-events:none; }
+  .song-map-track-scroll{ max-height:440px; overflow-y:auto; border-radius:var(--radius-sm); background:var(--wood-800); margin-bottom:8px; }
+  .song-map-track{ position:relative; width:100%; }
+  .song-map-marker{ position:absolute; left:0; right:0; height:0; border-top:2px solid var(--brass); cursor:pointer; }
+  .song-map-marker .marker-label{ position:absolute; top:-9px; left:10px; font-size:0.68rem; color:var(--ink-dim); white-space:nowrap; background:var(--wood-900); padding:1px 6px; border-radius:2px; }
+  .song-map-playhead{ position:absolute; left:0; right:0; height:0; border-top:2px solid var(--mahogany); pointer-events:none; z-index:2; }
   .song-map-nownext{ font-size:0.8rem; color:var(--ink-dim); margin-bottom:6px; }
   .song-map-nownext b{ color:var(--brass-bright); }
   .song-map-hint{ font-size:0.68rem; color:var(--ink-faint); line-height:1.4; }
@@ -726,39 +727,70 @@
     }catch(e){}
   }
 
+  // ---------- Auto-timing from BPM + counts (a manual per-move time still overrides this) ----------
+  function cumulativeCountsBefore(targetItem){
+    let total = 0;
+    for(const {item} of buildPracticeList()){
+      if(item === targetItem) return total;
+      total += Number(item.counts||0);
+    }
+    return total;
+  }
+  function effectiveTime(item){
+    if(item.time != null) return item.time;
+    const r = activeRoutine();
+    const bpm = Number(r.bpm) || 0;
+    if(!bpm) return null;
+    const offset = r.songStartOffset || 0;
+    return offset + (cumulativeCountsBefore(item)/bpm)*60;
+  }
+
   function renderSongMapTrack(){
     const track = document.getElementById('songMapTrack');
-    if(!track) return;
+    const scrollWrap = document.getElementById('songMapTrackScroll');
+    if(!track || !scrollWrap) return;
     const r = activeRoutine();
-    const flat = buildPracticeList().map(x=>x.item).filter(it => it.time != null);
-    const totalMs = currentDurationMs || ((flat.reduce((m,it)=>Math.max(m,it.time), 0) + 10) * 1000);
+    const flat = buildPracticeList().map(x=>x.item)
+      .map(it => ({ it, t: effectiveTime(it) }))
+      .filter(x => x.t != null);
+    const totalMs = currentDurationMs || ((flat.reduce((m,x)=>Math.max(m,x.t), 0) + 10) * 1000);
     const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
+    const pxPerSec = 8;
+    const trackHeight = Math.max((totalMs/1000)*pxPerSec, 200);
+    track.style.height = trackHeight + 'px';
     track.innerHTML = '';
-    flat.forEach(it => {
-      const pct = Math.min(100, (it.time*1000/totalMs)*100);
+    flat.forEach(({it,t}) => {
+      const topPx = Math.min(trackHeight, t*pxPerSec);
       const marker = document.createElement('div');
       marker.className = 'song-map-marker';
-      marker.style.left = pct + '%';
-      marker.innerHTML = `<span class="marker-label">${escapeAttr(it.name)} · ${formatTime(it.time)}</span>`;
-      marker.addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, it.time*1000));
+      marker.style.top = topPx + 'px';
+      marker.innerHTML = `<span class="marker-label">${formatTime(t)} · ${escapeAttr(it.name)}</span>`;
+      marker.addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, t*1000));
       track.appendChild(marker);
     });
+    const playheadPx = Math.min(trackHeight, (elapsedMs/1000)*pxPerSec);
     const playhead = document.createElement('div');
     playhead.className = 'song-map-playhead';
-    playhead.style.left = Math.min(100, (elapsedMs/totalMs)*100) + '%';
+    playhead.style.top = playheadPx + 'px';
     track.appendChild(playhead);
+    if(currentIsPlaying){
+      const viewTop = scrollWrap.scrollTop, viewBottom = viewTop + scrollWrap.clientHeight;
+      if(playheadPx < viewTop || playheadPx > viewBottom - 30){
+        scrollWrap.scrollTop = Math.max(0, playheadPx - scrollWrap.clientHeight/2);
+      }
+    }
 
     const nowNextEl = document.getElementById('songMapNowNext');
     if(nowNextEl){
       if(!flat.length){
-        nowNextEl.textContent = 'Set a time on at least one move below to start mapping the song.';
+        nowNextEl.textContent = 'Enter a BPM above to auto-time every move, or set times manually below.';
       } else {
-        const sorted = flat.slice().sort((a,b)=>a.time-b.time);
+        const sorted = flat.slice().sort((a,b)=>a.t-b.t);
         const elapsedSec = elapsedMs/1000;
         let current = null, next = null;
-        for(const it of sorted){ if(it.time <= elapsedSec) current = it; else { next = it; break; } }
-        let html = current ? ('Now: <b>' + escapeAttr(current.name) + '</b>') : 'Not started yet';
-        if(next) html += ' — Next: <b>' + escapeAttr(next.name) + '</b> in ' + Math.max(0, Math.round(next.time-elapsedSec)) + 's';
+        for(const x of sorted){ if(x.t <= elapsedSec) current = x; else { next = x; break; } }
+        let html = current ? ('Now: <b>' + escapeAttr(current.it.name) + '</b>') : 'Not started yet';
+        if(next) html += ' — Next: <b>' + escapeAttr(next.it.name) + '</b> in ' + Math.max(0, Math.round(next.t-elapsedSec)) + 's';
         nowNextEl.innerHTML = html;
       }
     }
@@ -835,10 +867,23 @@
         <button class="btn danger" id="spotifyDetachBtn">Detach song</button>
         <button class="linklike" id="spotifyLogoutBtn">Log out</button>
       </div>
-      <div class="song-map-track" id="songMapTrack"></div>
+      <div class="song-map-controls">
+        <label>count 1 starts at <input type="text" id="songOffsetInput" placeholder="mm:ss" value="${r.songStartOffset?formatTime(r.songStartOffset):''}"></label>
+        <button class="btn" id="useCurrentOffsetBtn">Use current position</button>
+      </div>
+      <div class="song-map-track-scroll" id="songMapTrackScroll"><div class="song-map-track" id="songMapTrack"></div></div>
       <div class="song-map-nownext" id="songMapNowNext"></div>
-      <div class="song-map-hint">Open Spotify on any device (phone app, desktop, speaker) and hit play once so it shows up below, then pick it here. This remote-controls that device — it works everywhere, including phones, since Spotify only lets a page play audio itself on desktop browsers.</div>
+      <div class="song-map-hint">With a BPM set above and "count 1 starts at" set here, every move's time is calculated automatically from its position in the routine — no need to set them by hand. Open Spotify on any device and hit play once so it shows up below, then pick it here.</div>
     `;
+    document.getElementById('songOffsetInput').addEventListener('change', (e) => {
+      r.songStartOffset = parseTimeInput(e.target.value) || 0;
+      saveRoutines(true); renderTimeline();
+    });
+    document.getElementById('useCurrentOffsetBtn').addEventListener('click', () => {
+      r.songStartOffset = currentPlaybackMs()/1000;
+      document.getElementById('songOffsetInput').value = formatTime(r.songStartOffset);
+      saveRoutines(true); renderTimeline();
+    });
     async function populateDevices(){
       const sel = document.getElementById('deviceSelect');
       if(!sel) return;
@@ -878,7 +923,7 @@
   function escapeAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
   function newSection(title){ return { id: uid('sec'), title: title || 'Section', items: [] }; }
-  function newRoutine(name){ return { id: uid('rt'), name: name || 'New routine', song:'', bpm:'', sections: [newSection('Intro')], spotifyTrackId: null, songDuration: null }; }
+  function newRoutine(name){ return { id: uid('rt'), name: name || 'New routine', song:'', bpm:'', sections: [newSection('Intro')], spotifyTrackId: null, songDuration: null, songStartOffset: 0 }; }
   function activeRoutine(){ return routinesState.routines.find(r => r.id === routinesState.activeId); }
 
   // ---------- Persistence ----------
@@ -1275,10 +1320,12 @@
           ${personal ? `<span class="move-video-toggle" data-action="toggle-video">&#9654; your video</span>` : (item.yt ? `<a class="move-watch" href="${ytUrl(item.yt)}" target="_blank" rel="noopener noreferrer">&#9654; watch</a>` : '')}
         </div>
         <div data-video-panel></div>
-        ${item.time!=null
-          ? `<button class="ti-time-btn set" data-action="play-time">⏱ ${formatTime(item.time)}</button><button class="ti-time-edit" data-action="edit-time" title="Edit time">✎</button>`
-          : `<button class="ti-time-btn" data-action="edit-time">+ set time in song</button>`
-        }
+        ${(() => {
+          const auto = effectiveTime(item);
+          const isManual = item.time != null;
+          if(auto != null) return `<button class="ti-time-btn set" data-action="play-time">⏱ ${formatTime(auto)}${isManual?'':' (auto)'}</button><button class="ti-time-edit" data-action="edit-time" title="${isManual?'Edit or clear override':'Override this time'}">✎</button>`;
+          return `<span class="ti-time-btn" style="cursor:default;">Set a BPM above for auto timing</span><button class="ti-time-edit" data-action="edit-time" title="Set manually">✎</button>`;
+        })()}
         <div data-time-panel></div>
         <textarea class="ti-notes" placeholder="Notes: styling detail, timing cue, floorcraft…">${item.notes || ''}</textarea>
       </div>
@@ -1303,17 +1350,21 @@
       const r = activeRoutine();
       if(!r.spotifyTrackId){ showToast('Attach a Spotify track to this routine first'); return; }
       if(!getStoredTokens()){ showToast('Log in to Spotify above first'); return; }
-      spotifyPlayTrackAt(r.spotifyTrackId, item.time*1000);
+      const t = effectiveTime(item);
+      if(t==null){ showToast('Enter a BPM above, or set a time manually'); return; }
+      spotifyPlayTrackAt(r.spotifyTrackId, t*1000);
     });
     row.querySelector('[data-action="edit-time"]').addEventListener('click', () => {
       const panel = row.querySelector('[data-time-panel]');
       if(panel.querySelector('.time-form')){ panel.innerHTML = ''; return; }
+      const auto = effectiveTime(item);
+      const isManual = item.time != null;
       panel.innerHTML = `
         <div class="time-form">
-          <input type="text" placeholder="mm:ss" value="${item.time!=null?formatTime(item.time):''}">
+          <input type="text" placeholder="${auto!=null?formatTime(auto)+' (auto)':'mm:ss'}" value="${isManual?formatTime(item.time):''}">
           <button class="use-clock">Use current position</button>
-          <button class="save">Save</button>
-          ${item.time!=null ? '<button class="clear">Clear</button>' : ''}
+          <button class="save">${isManual?'Update override':'Set override'}</button>
+          ${isManual ? '<button class="clear">Use auto instead</button>' : ''}
         </div>
       `;
       panel.querySelector('.use-clock').addEventListener('click', () => { panel.querySelector('input').value = formatTime(getSelectedDeviceId() ? currentPlaybackMs()/1000 : 0); });
@@ -1437,6 +1488,15 @@
   function practiceStep(dir){
     practiceIdx = Math.max(0, Math.min(practiceList.length-1, practiceIdx+dir));
     renderPracticeStep();
+    jumpSongToCurrentPracticeItem();
+  }
+  function jumpSongToCurrentPracticeItem(){
+    const r = activeRoutine();
+    if(!r.spotifyTrackId || !getStoredTokens() || !getSelectedDeviceId()) return;
+    const { item } = practiceList[practiceIdx];
+    const t = effectiveTime(item);
+    if(t == null) return;
+    spotifyPlayTrackAt(r.spotifyTrackId, t*1000);
   }
   function renderPracticeStep(){
     const { sec, item } = practiceList[practiceIdx];
@@ -1518,7 +1578,8 @@
       out += '== ' + sec.title + ' ==\n';
       if(!sec.items.length) out += '  (no moves)\n';
       sec.items.forEach(item => {
-        out += '  [' + (item.counts||'-') + ']' + (item.time!=null ? ' @' + formatTime(item.time) : '') + ' ' + item.name;
+        const t = effectiveTime(item);
+        out += '  [' + (item.counts||'-') + ']' + (t!=null ? ' @' + formatTime(t) : '') + ' ' + item.name;
         if(item.notes) out += ' — ' + item.notes;
         out += '\n';
       });
@@ -1540,7 +1601,8 @@
     sections.forEach(sec => {
       html += '<h2>' + escapeAttr(sec.title) + '</h2><ol>';
       sec.items.forEach(it => {
-        html += '<li><strong>[' + (it.counts||'-') + ']</strong>' + (it.time!=null ? ' <em>@' + formatTime(it.time) + '</em>' : '') + ' ' + escapeAttr(it.name) + (it.notes ? ' — ' + escapeAttr(it.notes) : '') + '</li>';
+        const t = effectiveTime(it);
+        html += '<li><strong>[' + (it.counts||'-') + ']</strong>' + (t!=null ? ' <em>@' + formatTime(t) + '</em>' : '') + ' ' + escapeAttr(it.name) + (it.notes ? ' — ' + escapeAttr(it.notes) : '') + '</li>';
       });
       html += '</ol>';
     });
@@ -1668,7 +1730,8 @@
       r.song = document.getElementById('songName').value;
       r.bpm = document.getElementById('bpm').value;
       if(id === 'routineName') populateRoutineSelect();
-      saveRoutines(true); updateTotals();
+      saveRoutines(true);
+      if(id === 'bpm') renderTimeline(); else updateTotals();
     });
   });
 
