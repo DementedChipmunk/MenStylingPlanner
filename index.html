@@ -9,34 +9,41 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --wood-950:#1a1210;
-    --wood-900:#211714;
-    --wood-800:#2c1f1a;
-    --wood-700:#3a2a22;
-    --wood-line: rgba(255,255,255,0.06);
-    --brass:#c9974a;
-    --brass-bright:#e6bf6e;
-    --mahogany:#a13c30;
-    --paper:#f1e7d8;
-    --ink:#efe4d3;
-    --ink-dim:#b4a390;
-    --ink-faint:#8a7a68;
-    --salsa: #a13c30;
-    --bachata: #3f6b62;
-    --solid-green: #6b8f5c;
-    --focus: #e6bf6e;
+    --wood-950:#0d0d0d;
+    --wood-900:#161616;
+    --wood-800:#212121;
+    --wood-700:#2c2c2c;
+    --wood-line: rgba(255,255,255,0.10);
+    --brass:#d0d0d0;
+    --brass-bright:#ffffff;
+    --mahogany:#a0a0a0;
+    --paper:#ffffff;
+    --ink:#f2f2f2;
+    --ink-dim:#bbbbbb;
+    --ink-faint:#808080;
+    --salsa: #ffffff;
+    --bachata: #808080;
+    --solid-green: #ffffff;
+    --focus: #ffffff;
+    --tint-rgb: 255,255,255;
     --radius-sm: 3px;
     --radius-md: 6px;
     font-size: 16px;
   }
   :root[data-theme="light"]{
-    --wood-950:#f1e7d8; --wood-900:#f6efe3; --wood-800:#fffaf1; --wood-700:#ffffff;
-    --wood-line: rgba(0,0,0,0.08); --ink:#2c1f1a; --ink-dim:#5a4a3c; --ink-faint:#8a7a68;
+    --wood-950:#ffffff; --wood-900:#f5f5f5; --wood-800:#ffffff; --wood-700:#ececec;
+    --wood-line: rgba(0,0,0,0.12); --ink:#141414; --ink-dim:#454545; --ink-faint:#797979;
+    --brass:#333333; --brass-bright:#000000; --mahogany:#4d4d4d;
+    --salsa:#000000; --bachata:#777777; --solid-green:#000000; --focus:#000000;
+    --tint-rgb: 0,0,0;
   }
   @media (prefers-color-scheme: light){
     :root:not([data-theme="dark"]){
-      --wood-950:#f1e7d8; --wood-900:#f6efe3; --wood-800:#fffaf1; --wood-700:#ffffff;
-      --wood-line: rgba(0,0,0,0.08); --ink:#2c1f1a; --ink-dim:#5a4a3c; --ink-faint:#8a7a68;
+      --wood-950:#ffffff; --wood-900:#f5f5f5; --wood-800:#ffffff; --wood-700:#ececec;
+      --wood-line: rgba(0,0,0,0.12); --ink:#141414; --ink-dim:#454545; --ink-faint:#797979;
+      --brass:#333333; --brass-bright:#000000; --mahogany:#4d4d4d;
+      --salsa:#000000; --bachata:#777777; --solid-green:#000000; --focus:#000000;
+      --tint-rgb: 0,0,0;
     }
   }
   *{ box-sizing:border-box; }
@@ -95,9 +102,7 @@
 
   .style-filter{ display:flex; gap:6px; margin-bottom:8px; }
   .style-filter button{ flex:1; padding:8px 6px; font-size:0.78rem; border-radius:var(--radius-sm); background:var(--wood-800); border:1px solid var(--wood-line); color:var(--ink-dim); cursor:pointer; }
-  .style-filter button.active[data-style="all"]{ background:var(--brass); color:var(--wood-950); border-color:var(--brass); }
-  .style-filter button.active[data-style="salsa"]{ background:var(--salsa); color:#fff; border-color:var(--salsa); }
-  .style-filter button.active[data-style="bachata"]{ background:var(--bachata); color:#fff; border-color:var(--bachata); }
+  .style-filter button.active{ background:var(--brass-bright); color:var(--wood-950); border-color:var(--brass-bright); }
 
   .more-filters{ display:none; margin-bottom:10px; padding:10px; background:var(--wood-900); border:1px solid var(--wood-line); border-radius:var(--radius-md); }
   .more-filters.open{ display:block; }
@@ -108,7 +113,7 @@
   .chip.active{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
   .chip.mastery-new.active{ background:var(--ink-faint); border-color:var(--ink-faint); color:var(--wood-950); }
   .chip.mastery-drilling.active{ background:var(--brass); border-color:var(--brass); color:var(--wood-950); }
-  .chip.mastery-solid.active{ background:var(--solid-green); border-color:var(--solid-green); color:#fff; }
+  .chip.mastery-solid.active{ background:var(--solid-green); border-color:var(--solid-green); color:var(--wood-950); }
 
   .shuffle-box{ margin-bottom:10px; border:1px dashed var(--wood-line); border-radius:var(--radius-md); padding:10px; }
   .shuffle-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -132,9 +137,9 @@
   .move-name-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .move-name{ font-size:0.88rem; font-weight:600; color:var(--ink); }
   .diff-badge{ font-size:0.62rem; padding:1px 6px; border-radius:8px; text-transform:uppercase; letter-spacing:0.3px; }
-  .diff-badge.beg{ background:rgba(107,143,92,0.25); color:var(--solid-green); }
-  .diff-badge.int{ background:rgba(201,151,74,0.22); color:var(--brass-bright); }
-  .diff-badge.adv{ background:rgba(161,60,48,0.25); color:#e08b7d; }
+  .diff-badge.beg{ background:rgba(var(--tint-rgb),0.12); color:var(--ink-dim); }
+  .diff-badge.int{ background:rgba(var(--tint-rgb),0.22); color:var(--ink); }
+  .diff-badge.adv{ background:rgba(var(--tint-rgb),0.38); color:var(--ink); font-weight:600; }
   .move-desc{ font-size:0.76rem; color:var(--ink-faint); margin-top:2px; line-height:1.35; }
   .move-counts-row{ display:flex; align-items:center; gap:10px; margin-top:5px; flex-wrap:wrap; }
   .move-counts{ font-size:0.7rem; color:var(--brass-bright); }
@@ -169,9 +174,12 @@
   #spotifyPosDisplay{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--brass-bright); }
   .song-map-track-scroll{ max-height:440px; overflow-y:auto; border-radius:var(--radius-sm); background:var(--wood-800); margin-bottom:8px; }
   .song-map-track{ position:relative; width:100%; }
-  .song-map-marker{ position:absolute; left:0; right:0; height:0; border-top:2px solid var(--brass); cursor:pointer; }
-  .song-map-marker .marker-label{ position:absolute; top:-9px; left:10px; font-size:0.68rem; color:var(--ink-dim); white-space:nowrap; background:var(--wood-900); padding:1px 6px; border-radius:2px; }
-  .song-map-playhead{ position:absolute; left:0; right:0; height:0; border-top:2px solid var(--mahogany); pointer-events:none; z-index:2; }
+  .song-map-ruler-line{ position:absolute; left:0; right:0; height:0; border-top:1px solid var(--wood-line); }
+  .song-map-ruler-line .ruler-label{ position:absolute; left:4px; top:-7px; font-size:0.62rem; color:var(--ink-faint); }
+  .song-map-marker{ position:absolute; left:44px; right:8px; height:0; border-top:2px solid var(--brass); cursor:pointer; }
+  .song-map-marker .marker-label{ position:absolute; top:-10px; left:8px; font-size:0.76rem; font-weight:600; color:var(--ink); white-space:nowrap; background:var(--wood-700); padding:2px 8px; border-radius:3px; border:1px solid var(--wood-line); }
+  .song-map-marker:hover .marker-label{ border-color:var(--brass-bright); }
+  .song-map-playhead{ position:absolute; left:0; right:0; height:0; border-top:3px solid var(--brass-bright); pointer-events:none; z-index:3; box-shadow:0 0 4px rgba(var(--tint-rgb),0.5); }
   .song-map-nownext{ font-size:0.8rem; color:var(--ink-dim); margin-bottom:6px; }
   .song-map-nownext b{ color:var(--brass-bright); }
   .song-map-hint{ font-size:0.68rem; color:var(--ink-faint); line-height:1.4; }
@@ -250,6 +258,7 @@
   .practice-desc{ font-size:0.9rem; color:var(--ink-dim); max-width:460px; margin-bottom:8px; }
   .practice-notes{ font-size:0.85rem; color:var(--ink-faint); font-style:italic; max-width:460px; margin-bottom:10px; }
   .practice-watch{ color:var(--brass-bright); font-size:0.85rem; text-decoration:none; border-bottom:1px dotted var(--brass-bright); margin-bottom:18px; }
+  .practice-upnext{ font-size:0.85rem; color:var(--ink-dim); margin-bottom:18px; letter-spacing:0.2px; }
   .practice-video{ width:100%; max-width:420px; position:relative; padding-top:56.25%; margin-bottom:16px; border-radius:var(--radius-sm); overflow:hidden; background:#000; }
   .practice-video iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
   .practice-video video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
@@ -397,6 +406,7 @@
   <div class="practice-notes" id="practiceNotes"></div>
   <div id="practiceVideoWrap"></div>
   <a class="practice-watch" id="practiceWatch" target="_blank" rel="noopener noreferrer" style="display:none;">&#9654; watch on YouTube</a>
+  <div class="practice-upnext" id="practiceUpNext"></div>
   <div class="practice-nav">
     <button id="practicePrev">‹ Prev</button>
     <button id="practiceNext">Next ›</button>
@@ -699,6 +709,7 @@
       currentIsPlaying = !!data.is_playing;
       if(data.item) currentDurationMs = data.item.duration_ms;
       renderSongMapTrack();
+      syncPracticeToPlayback();
     }catch(e){}
   }
   function currentPlaybackMs(){ return currentPositionMs + (currentIsPlaying ? (Date.now()-lastPollTimestamp) : 0); }
@@ -755,10 +766,18 @@
       .filter(x => x.t != null);
     const totalMs = currentDurationMs || ((flat.reduce((m,x)=>Math.max(m,x.t), 0) + 10) * 1000);
     const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
-    const pxPerSec = 8;
+    const pxPerSec = 14;
     const trackHeight = Math.max((totalMs/1000)*pxPerSec, 200);
     track.style.height = trackHeight + 'px';
     track.innerHTML = '';
+    const totalSec = totalMs/1000;
+    for(let s = 0; s <= totalSec; s += 10){
+      const rulerLine = document.createElement('div');
+      rulerLine.className = 'song-map-ruler-line';
+      rulerLine.style.top = (s*pxPerSec) + 'px';
+      rulerLine.innerHTML = `<span class="ruler-label">${formatTime(s)}</span>`;
+      track.appendChild(rulerLine);
+    }
     flat.forEach(({it,t}) => {
       const topPx = Math.min(trackHeight, t*pxPerSec);
       const marker = document.createElement('div');
@@ -1468,15 +1487,18 @@
     sections.forEach(sec => sec.items.forEach(item => list.push({ sec, item })));
     return list;
   }
+  let practiceOpen = false;
   function openPractice(){
     practiceList = buildPracticeList();
     if(!practiceList.length){ showToast('Add some moves to the timeline first'); return; }
     practiceIdx = 0;
+    practiceOpen = true;
     document.getElementById('practiceOverlay').classList.add('open');
     renderPracticeStep();
     document.addEventListener('keydown', practiceKeyHandler);
   }
   function closePractice(){
+    practiceOpen = false;
     document.getElementById('practiceOverlay').classList.remove('open');
     document.removeEventListener('keydown', practiceKeyHandler);
   }
@@ -1498,12 +1520,33 @@
     if(t == null) return;
     spotifyPlayTrackAt(r.spotifyTrackId, t*1000);
   }
+  function syncPracticeToPlayback(){
+    if(!practiceOpen || !practiceList.length) return;
+    const r = activeRoutine();
+    if(!r.spotifyTrackId) return;
+    const elapsedSec = currentPlaybackMs()/1000;
+    let bestIdx = -1;
+    for(let i=0; i<practiceList.length; i++){
+      const t = effectiveTime(practiceList[i].item);
+      if(t == null) continue;
+      if(t <= elapsedSec) bestIdx = i; else break;
+    }
+    if(bestIdx >= 0 && bestIdx !== practiceIdx){
+      practiceIdx = bestIdx;
+      renderPracticeStep(); // don't call jumpSongToCurrentPracticeItem — the song is already there, this just follows it
+    }
+  }
   function renderPracticeStep(){
     const { sec, item } = practiceList[practiceIdx];
     document.getElementById('practiceProgress').textContent = (practiceIdx+1) + ' of ' + practiceList.length;
     document.getElementById('practiceSection').textContent = sec.title;
     document.getElementById('practiceCount').textContent = item.counts || '–';
     document.getElementById('practiceName').textContent = item.name;
+    const upNextEl = document.getElementById('practiceUpNext');
+    if(upNextEl){
+      const nextEntry = practiceList[practiceIdx+1];
+      upNextEl.textContent = nextEntry ? ('Next: ' + nextEntry.item.name) : 'Last move in the routine';
+    }
     const libMove = item.libMoveId ? allMoves().find(m=>m.id===item.libMoveId) : null;
     document.getElementById('practiceDesc').textContent = libMove ? libMove.desc || '' : '';
     document.getElementById('practiceNotes').textContent = item.notes || '';
