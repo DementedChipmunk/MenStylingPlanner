@@ -383,6 +383,7 @@
       </div>
       <div id="routineVideoPanel"></div>
       <div class="song-map-box" id="songMapBox"></div>
+      <div class="song-map-box" id="loopBox"></div>
       <div id="timeline"></div>
       <button class="add-section-btn" id="addSectionBottom">+ Add another section</button>
     </div>
@@ -710,6 +711,7 @@
       if(data.item) currentDurationMs = data.item.duration_ms;
       renderSongMapTrack();
       syncPracticeToPlayback();
+      checkLoopBoundary();
     }catch(e){}
   }
   function currentPlaybackMs(){ return currentPositionMs + (currentIsPlaying ? (Date.now()-lastPollTimestamp) : 0); }
@@ -736,6 +738,12 @@
       await fetch('https://api.spotify.com/v1/me/player/' + endpoint + '?device_id=' + deviceId, { method:'PUT', headers:{'Authorization':'Bearer '+token} });
       setTimeout(pollPlaybackState, 400);
     }catch(e){}
+  }
+  async function spotifyPause(){
+    const deviceId = getSelectedDeviceId();
+    if(!deviceId) return;
+    const token = await getValidAccessToken();
+    try{ await fetch('https://api.spotify.com/v1/me/player/pause?device_id=' + deviceId, { method:'PUT', headers:{'Authorization':'Bearer '+token} }); }catch(e){}
   }
 
   // ---------- Auto-timing from BPM + counts (a manual per-move time still overrides this) ----------
@@ -929,7 +937,8 @@
     document.getElementById('spotifyPauseBtn').addEventListener('click', spotifyTogglePlay);
     document.getElementById('spotifyDetachBtn').addEventListener('click', () => {
       if(!confirm('Detach this song from the routine?')) return;
-      r.spotifyTrackId = null; saveRoutines(true); renderSongMapBox(); renderTimeline();
+      stopLoop();
+      r.spotifyTrackId = null; saveRoutines(true); renderSongMapBox(); renderLoopBox(); renderTimeline();
     });
     document.getElementById('spotifyLogoutBtn').addEventListener('click', spotifyLogout);
     populateDevices();
@@ -937,6 +946,130 @@
     devicePollTimer = setInterval(pollPlaybackState, 1500);
     pollPlaybackState();
     renderSongMapTrack();
+  }
+
+  // ---------- Practice loop (loop between two moves, with an optional 8-count click lead-in) ----------
+  let activeLoop = null; // { startIdx, endIdx, loopStartSec, loopEndSec, leadIn, iteration, pending }
+
+  function playCountIn(bpm, onDone){
+    ensureAudio();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const interval = 60/bpm;
+    let count = 0;
+    let nextTime = audioCtx.currentTime;
+    function tick(){
+      if(count >= 8){ onDone(); return; }
+      const now = audioCtx.currentTime;
+      if(nextTime <= now + 0.05){
+        count++;
+        playClick(count === 1);
+        nextTime += interval;
+      }
+      setTimeout(tick, 20);
+    }
+    tick();
+  }
+
+  function checkLoopBoundary(){
+    if(!activeLoop || activeLoop.pending) return;
+    const elapsedSec = currentPlaybackMs()/1000;
+    if(elapsedSec >= activeLoop.loopEndSec) restartLoop();
+  }
+  async function restartLoop(){
+    if(!activeLoop) return;
+    activeLoop.pending = true;
+    activeLoop.iteration++;
+    updateLoopStatusUI();
+    const r = activeRoutine();
+    await spotifyPause();
+    const bpm = Number(r.bpm) || 0;
+    const doSeek = async () => {
+      await spotifyPlayTrackAt(r.spotifyTrackId, activeLoop.loopStartSec*1000);
+      if(activeLoop) activeLoop.pending = false;
+      setTimeout(pollPlaybackState, 500);
+    };
+    if(activeLoop.leadIn && bpm) playCountIn(bpm, doSeek);
+    else await doSeek();
+  }
+  function startLoop(startIdx, endIdx, leadIn){
+    const r = activeRoutine();
+    if(!r.spotifyTrackId){ showToast('Attach a Spotify track to this routine first'); return; }
+    if(!getSelectedDeviceId()){ showToast('Pick a Spotify device first'); return; }
+    if(startIdx > endIdx){ showToast('Start move must come before (or be) the end move'); return; }
+    const list = buildPracticeList();
+    const startT = effectiveTime(list[startIdx].item);
+    if(startT == null){ showToast('That start move has no time — set a BPM above, or a manual time on it'); return; }
+    const bpm = Number(r.bpm) || 0;
+    let endT;
+    const afterEnd = list[endIdx+1];
+    if(afterEnd) endT = effectiveTime(afterEnd.item);
+    if(endT == null){
+      const endItem = list[endIdx].item;
+      const endBase = effectiveTime(endItem);
+      endT = bpm ? endBase + (Number(endItem.counts||8)/bpm)*60 : endBase + 4;
+    }
+    if(endT == null){ showToast('Could not work out where the loop should end'); return; }
+    activeLoop = { startIdx, endIdx, loopStartSec: startT, loopEndSec: endT, leadIn, iteration: 1, pending: false };
+    spotifyPlayTrackAt(r.spotifyTrackId, startT*1000);
+    renderLoopActionRow();
+  }
+  function stopLoop(){
+    activeLoop = null;
+    renderLoopActionRow();
+  }
+  function renderLoopBox(){
+    const box = document.getElementById('loopBox');
+    if(!box) return;
+    const list = buildPracticeList();
+    if(!list.length){
+      box.innerHTML = '<div class="song-map-hint">Add moves to the timeline to set up a practice loop.</div>';
+      return;
+    }
+    const options = list.map((x,i) => `<option value="${i}">${escapeAttr(x.item.name)} — ${escapeAttr(x.sec.title)}</option>`).join('');
+    box.innerHTML = `
+      <div class="song-map-controls">
+        <label>loop from <select id="loopStartSelect">${options}</select></label>
+      </div>
+      <div class="song-map-controls">
+        <label>to <select id="loopEndSelect">${options}</select></label>
+      </div>
+      <div class="song-map-controls">
+        <label><input type="checkbox" id="loopLeadIn"> 8-count click lead-in before each repeat</label>
+      </div>
+      <div class="song-map-controls" id="loopActionRow"></div>
+      <div class="song-map-hint" id="loopStatus"></div>
+    `;
+    document.getElementById('loopEndSelect').value = String(list.length-1);
+    renderLoopActionRow();
+  }
+  function renderLoopActionRow(){
+    const row = document.getElementById('loopActionRow');
+    if(!row) return;
+    if(activeLoop){
+      row.innerHTML = `<button class="btn danger" id="stopLoopBtn">■ Stop loop</button>`;
+      document.getElementById('stopLoopBtn').addEventListener('click', stopLoop);
+    } else {
+      row.innerHTML = `<button class="btn primary" id="startLoopBtn">▶ Start loop</button>`;
+      document.getElementById('startLoopBtn').addEventListener('click', () => {
+        const s = Number(document.getElementById('loopStartSelect').value);
+        const e = Number(document.getElementById('loopEndSelect').value);
+        const leadIn = document.getElementById('loopLeadIn').checked;
+        startLoop(s, e, leadIn);
+      });
+    }
+    updateLoopStatusUI();
+  }
+  function updateLoopStatusUI(){
+    const statusEl = document.getElementById('loopStatus');
+    if(!statusEl) return;
+    if(!activeLoop){
+      statusEl.textContent = 'Loops repeat between two moves — good for drilling a tricky transition. Boundary checks happen every ~1.5s, so the loop-back can land a beat or two late.';
+      return;
+    }
+    const list = buildPracticeList();
+    const startName = (list[activeLoop.startIdx] && list[activeLoop.startIdx].item.name) || '?';
+    const endName = (list[activeLoop.endIdx] && list[activeLoop.endIdx].item.name) || '?';
+    statusEl.textContent = 'Looping ' + startName + ' → ' + endName + ' · repeat #' + activeLoop.iteration + (activeLoop.leadIn ? ' · lead-in on' : '');
   }
 
   function escapeAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -1243,6 +1376,7 @@
     updateTotals();
     renderRoutineVideoPanel();
     renderSongMapTrack();
+    renderLoopBox();
   }
 
   function renderRoutineVideoPanel(){
@@ -1473,6 +1607,7 @@
     sections = r.sections;
   }
   function switchRoutine(id){
+    stopLoop();
     routinesState.activeId = id;
     loadActiveRoutineIntoHeader();
     populateRoutineSelect();
