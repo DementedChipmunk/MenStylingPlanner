@@ -174,6 +174,11 @@
   #spotifyPosDisplay{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; color:var(--brass-bright); }
   .song-map-track-scroll{ max-height:440px; overflow-y:auto; border-radius:var(--radius-sm); background:var(--wood-800); margin-bottom:8px; }
   .song-map-track{ position:relative; width:100%; }
+  .song-map-zoom{ display:flex; align-items:center; gap:7px; margin-left:auto; }
+  .song-map-zoom .zoom-label{ color:var(--ink-faint); font-size:0.7rem; }
+  .song-map-zoom input[type="range"]{ width:110px; accent-color:var(--brass); }
+  .song-map-zoom .zoom-value{ min-width:42px; text-align:right; color:var(--ink-dim); font-size:0.7rem; }
+  .song-map-zoom button{ min-width:30px; padding:5px 8px; }
   .song-map-ruler-line{ position:absolute; left:0; right:0; height:0; border-top:1px solid var(--wood-line); }
   .song-map-ruler-line.downbeat{ border-top:1px solid var(--ink-faint); }
   .song-map-ruler-line .ruler-label{ position:absolute; left:4px; top:-7px; font-size:0.62rem; color:var(--ink-faint); }
@@ -584,6 +589,8 @@
   let spotifyDevices = [];
   let currentPositionMs = 0, currentDurationMs = 0, currentIsPlaying = false, lastPollTimestamp = 0;
   let devicePollTimer = null;
+  let songMapZoom = 1;
+  let songMapAnimationFrame = null;
   const SPOTIFY_SCOPES = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state';
 
   function uid(prefix){ return prefix + (idCounter++); }
@@ -604,6 +611,13 @@
     const m = Math.floor(totalSeconds/60), s = totalSeconds%60;
     return m + ':' + (s<10?'0':'') + s;
   }
+  function formatPreciseTime(totalSeconds){
+    totalSeconds = Math.max(0, Number(totalSeconds) || 0);
+    const m = Math.floor(totalSeconds / 60);
+    const sec = totalSeconds - m * 60;
+    return m + ':' + sec.toFixed(2).padStart(5, '0');
+  }
+
   function parseTimeInput(str){
     str = (str||'').trim();
     if(!str) return null;
@@ -719,6 +733,8 @@
       lastPollTimestamp = Date.now();
       currentIsPlaying = !!data.is_playing;
       if(data.item) currentDurationMs = data.item.duration_ms;
+      if(currentIsPlaying) startSongMapAnimation();
+      else if(songMapAnimationFrame){ cancelAnimationFrame(songMapAnimationFrame); songMapAnimationFrame = null; }
       renderSongMapTrack();
       syncPracticeToPlayback();
       checkLoopBoundary();
@@ -775,6 +791,30 @@
     return offset + (cumulativeCountsBefore(item)/bpm)*60 + nudgeSec;
   }
 
+  function updateSongMapPlayhead(){
+    const track = document.getElementById('songMapTrack');
+    const playhead = track && track.querySelector('.song-map-playhead');
+    if(!track || !playhead) return;
+    const r = activeRoutine();
+    const bpm = Number(r && r.bpm) || 0;
+    const pxPerBeat = 26 * songMapZoom;
+    const pxPerSec = bpm ? pxPerBeat * bpm / 60 : 14 * songMapZoom;
+    const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
+    playhead.style.top = Math.min(track.offsetHeight, elapsedMs / 1000 * pxPerSec) + 'px';
+    const posEl = document.getElementById('spotifyPosDisplay');
+    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (currentDurationMs ? ' / ' + formatTime(currentDurationMs/1000) : '');
+  }
+
+  function startSongMapAnimation(){
+    if(songMapAnimationFrame) return;
+    const frame = () => {
+      songMapAnimationFrame = null;
+      updateSongMapPlayhead();
+      if(currentIsPlaying) songMapAnimationFrame = requestAnimationFrame(frame);
+    };
+    songMapAnimationFrame = requestAnimationFrame(frame);
+  }
+
   function renderSongMapTrack(){
     const track = document.getElementById('songMapTrack');
     const scrollWrap = document.getElementById('songMapTrackScroll');
@@ -784,65 +824,62 @@
       .map(it => ({ it, t: effectiveTime(it) }))
       .filter(x => x.t != null);
     const totalMs = currentDurationMs || ((flat.reduce((m,x)=>Math.max(m,x.t), 0) + 10) * 1000);
-    const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
     const bpm = Number(r.bpm) || 0;
-    const pxPerBeat = 26;
-    const pxPerSec = bpm ? (pxPerBeat * bpm/60) : 14;
+    const pxPerBeat = 26 * songMapZoom;
+    const pxPerSec = bpm ? pxPerBeat * bpm/60 : 14 * songMapZoom;
     const trackHeight = Math.max((totalMs/1000)*pxPerSec, 200);
     track.style.height = trackHeight + 'px';
     track.innerHTML = '';
     const totalSec = totalMs/1000;
     if(bpm){
+      // One ruler step = exactly one beat = 60/BPM seconds.
       const beatInterval = 60/bpm;
       const offset = r.songStartOffset || 0;
-      let beatIdx = 0;
-      for(let t = offset; t <= totalSec; t += beatInterval){
+      const maxBeats = Math.ceil(totalSec / beatInterval) + 1;
+      for(let beatIdx = 0; beatIdx < maxBeats; beatIdx++){
+        const t = offset + beatIdx * beatInterval;
+        if(t > totalSec) break;
         const countNum = (beatIdx % 8) + 1;
         const isDownbeat = countNum === 1;
         const rulerLine = document.createElement('div');
         rulerLine.className = 'song-map-ruler-line' + (isDownbeat ? ' downbeat' : '');
-        rulerLine.style.top = (t*pxPerSec) + 'px';
-        rulerLine.innerHTML = `<span class="ruler-count">${countNum}</span>` + (isDownbeat ? `<span class="ruler-time">${formatTime(t)}</span>` : '');
+        rulerLine.style.top = t*pxPerSec + 'px';
+        rulerLine.innerHTML = `<span class="ruler-count">${countNum}</span>` + (isDownbeat ? `<span class="ruler-time">${formatPreciseTime(t)}</span>` : '');
         track.appendChild(rulerLine);
-        beatIdx++;
       }
     } else {
       for(let s = 0; s <= totalSec; s += 10){
         const rulerLine = document.createElement('div');
         rulerLine.className = 'song-map-ruler-line';
-        rulerLine.style.top = (s*pxPerSec) + 'px';
+        rulerLine.style.top = s*pxPerSec + 'px';
         rulerLine.innerHTML = `<span class="ruler-label">${formatTime(s)}</span>`;
         track.appendChild(rulerLine);
       }
     }
     flat.forEach(({it,t}) => {
-      const topPx = Math.min(trackHeight, t*pxPerSec);
       const marker = document.createElement('div');
       marker.className = 'song-map-marker';
-      marker.style.top = topPx + 'px';
-      marker.innerHTML = `<span class="marker-label">${formatTime(t)} · ${escapeAttr(it.name)}</span>`;
+      marker.style.top = Math.min(trackHeight, t*pxPerSec) + 'px';
+      marker.innerHTML = `<span class="marker-label">${formatPreciseTime(t)} · ${escapeAttr(it.name)}</span>`;
       marker.addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, t*1000));
       track.appendChild(marker);
     });
-    const playheadPx = Math.min(trackHeight, (elapsedMs/1000)*pxPerSec);
     const playhead = document.createElement('div');
     playhead.className = 'song-map-playhead';
-    playhead.style.top = playheadPx + 'px';
     track.appendChild(playhead);
+    updateSongMapPlayhead();
     if(currentIsPlaying){
+      startSongMapAnimation();
+      const playheadPx = Math.min(trackHeight, currentPlaybackMs()/1000*pxPerSec);
       const viewTop = scrollWrap.scrollTop, viewBottom = viewTop + scrollWrap.clientHeight;
-      if(playheadPx < viewTop || playheadPx > viewBottom - 30){
-        scrollWrap.scrollTop = Math.max(0, playheadPx - scrollWrap.clientHeight/2);
-      }
+      if(playheadPx < viewTop || playheadPx > viewBottom - 30) scrollWrap.scrollTop = Math.max(0, playheadPx - scrollWrap.clientHeight/2);
     }
-
     const nowNextEl = document.getElementById('songMapNowNext');
     if(nowNextEl){
-      if(!flat.length){
-        nowNextEl.textContent = 'Enter a BPM above to auto-time every move, or set times manually below.';
-      } else {
+      if(!flat.length) nowNextEl.textContent = 'Enter a BPM above to auto-time every move, or set times manually below.';
+      else {
         const sorted = flat.slice().sort((a,b)=>a.t-b.t);
-        const elapsedSec = elapsedMs/1000;
+        const elapsedSec = currentPlaybackMs()/1000;
         let current = null, next = null;
         for(const x of sorted){ if(x.t <= elapsedSec) current = x; else { next = x; break; } }
         let html = current ? ('Now: <b>' + escapeAttr(current.it.name) + '</b>') : 'Not started yet';
@@ -850,8 +887,6 @@
         nowNextEl.innerHTML = html;
       }
     }
-    const posEl = document.getElementById('spotifyPosDisplay');
-    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (currentDurationMs ? ' / ' + formatTime(currentDurationMs/1000) : '');
   }
 
   function renderSongMapBox(){
@@ -915,6 +950,13 @@
       <div class="song-map-controls">
         <select id="deviceSelect"><option value="">Loading devices…</option></select>
         <button class="btn" id="refreshDevicesBtn">&#8635; Refresh devices</button>
+        <div class="song-map-zoom" aria-label="Timeline zoom">
+          <span class="zoom-label">zoom</span>
+          <button class="btn" id="songMapZoomOut" type="button" aria-label="Zoom out">−</button>
+          <input id="songMapZoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Timeline zoom level">
+          <button class="btn" id="songMapZoomIn" type="button" aria-label="Zoom in">+</button>
+          <span class="zoom-value" id="songMapZoomValue">100%</span>
+        </div>
       </div>
       <div class="song-map-controls">
         <button class="btn primary" id="spotifyPlayBtn">▶ Play routine song</button>
@@ -961,6 +1003,20 @@
       setSelectedDeviceId(pick);
     }
     document.getElementById('deviceSelect').addEventListener('change', (e) => setSelectedDeviceId(e.target.value));
+    const zoomRange = document.getElementById('songMapZoomRange');
+    const zoomValue = document.getElementById('songMapZoomValue');
+    const applySongMapZoom = (value) => {
+      songMapZoom = Math.max(0.5, Math.min(3, Number(value) / 100));
+      const pct = Math.round(songMapZoom * 100);
+      zoomRange.value = pct;
+      zoomValue.textContent = pct + '%';
+      renderSongMapTrack();
+    };
+    zoomRange.value = Math.round(songMapZoom * 100);
+    zoomValue.textContent = Math.round(songMapZoom * 100) + '%';
+    zoomRange.addEventListener('input', e => applySongMapZoom(e.target.value));
+    document.getElementById('songMapZoomOut').addEventListener('click', () => applySongMapZoom(Math.round(songMapZoom * 100) - 10));
+    document.getElementById('songMapZoomIn').addEventListener('click', () => applySongMapZoom(Math.round(songMapZoom * 100) + 10));
     document.getElementById('refreshDevicesBtn').addEventListener('click', populateDevices);
     document.getElementById('spotifyPlayBtn').addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, 0));
     document.getElementById('spotifyPauseBtn').addEventListener('click', spotifyTogglePlay);
