@@ -179,13 +179,16 @@
   .song-map-zoom input[type="range"]{ width:110px; accent-color:var(--brass); }
   .song-map-zoom .zoom-value{ min-width:42px; text-align:right; color:var(--ink-dim); font-size:0.7rem; }
   .song-map-zoom button{ min-width:30px; padding:5px 8px; }
-  .song-map-ruler-line{ position:absolute; left:0; right:0; height:0; border-top:1px solid var(--wood-line); }
+  .song-map-section-band{ position:absolute; left:0; right:0; background:rgba(var(--tint-rgb),0.035); border-top:2px solid rgba(var(--tint-rgb),0.18); border-bottom:1px solid rgba(var(--tint-rgb),0.12); pointer-events:none; z-index:0; }
+  .song-map-section-band.alt{ background:rgba(var(--tint-rgb),0.07); }
+  .section-band-label{ position:sticky; top:4px; display:inline-block; margin:4px 0 0 68px; padding:3px 8px; border-radius:3px; background:var(--wood-800); border:1px solid var(--wood-line); color:var(--brass-bright); font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+  .song-map-ruler-line{ position:absolute; left:0; right:0; height:0; z-index:1; border-top:1px solid var(--wood-line); }
   .song-map-ruler-line.downbeat{ border-top:1px solid var(--ink-faint); }
   .song-map-ruler-line .ruler-label{ position:absolute; left:4px; top:-7px; font-size:0.62rem; color:var(--ink-faint); }
   .song-map-ruler-line .ruler-count{ position:absolute; left:4px; top:-8px; width:16px; text-align:center; font-size:0.68rem; font-weight:600; color:var(--ink-faint); }
   .song-map-ruler-line.downbeat .ruler-count{ color:var(--brass-bright); font-size:0.78rem; }
   .song-map-ruler-line .ruler-time{ position:absolute; left:22px; top:-7px; font-size:0.6rem; color:var(--ink-faint); white-space:nowrap; }
-  .song-map-marker{ position:absolute; left:64px; right:8px; height:0; border-top:2px solid var(--brass); cursor:pointer; }
+  .song-map-marker{ position:absolute; left:64px; z-index:2; right:8px; height:0; border-top:2px solid var(--brass); cursor:pointer; }
   .song-map-marker .marker-label{ position:absolute; top:-10px; left:8px; font-size:0.76rem; font-weight:600; color:var(--ink); white-space:nowrap; background:var(--wood-700); padding:2px 8px; border-radius:3px; border:1px solid var(--wood-line); }
   .song-map-marker:hover .marker-label{ border-color:var(--brass-bright); }
   .song-map-playhead{ position:absolute; left:0; right:0; height:0; border-top:3px solid var(--brass-bright); pointer-events:none; z-index:3; box-shadow:0 0 4px rgba(var(--tint-rgb),0.5); }
@@ -232,6 +235,14 @@
   .section-head .icon-btn{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:0.95rem; padding:4px; }
   .section-head .icon-btn:hover{ color:var(--mahogany); }
   .section-count{ font-size:0.7rem; color:var(--ink-faint); white-space:nowrap; }
+  .section-add-move{ padding:4px 8px; border:1px solid var(--wood-line); border-radius:var(--radius-sm); background:var(--wood-900); color:var(--brass-bright); cursor:pointer; font-size:0.72rem; white-space:nowrap; }
+  .section-add-move:hover{ border-color:var(--brass); background:var(--wood-700); }
+  .section-add-panel{ display:flex; gap:6px; align-items:center; padding:8px 10px; background:var(--wood-900); border-bottom:1px solid var(--wood-line); }
+  .section-add-panel select{ flex:1; min-width:0; background:var(--wood-950); border:1px solid var(--wood-line); color:var(--ink); padding:6px 8px; border-radius:var(--radius-sm); font-size:0.78rem; }
+  .section-add-panel button{ padding:6px 10px; font-size:0.74rem; }
+  .move-to-wrap{ display:block; }
+  .move-to-select{ max-width:92px; background:var(--wood-900); border:1px solid var(--wood-line); color:var(--ink-faint); border-radius:var(--radius-sm); padding:3px 4px; font-size:0.65rem; }
+  .move-to-select:focus{ border-color:var(--brass); outline:none; }
   .moves-list{ padding:10px 10px 12px; display:flex; flex-direction:column; gap:6px; }
   .empty-hint{ padding:16px 12px; text-align:center; color:var(--ink-faint); font-size:0.82rem; }
 
@@ -820,57 +831,83 @@
     const scrollWrap = document.getElementById('songMapTrackScroll');
     if(!track || !scrollWrap) return;
     const r = activeRoutine();
-    const flat = buildPracticeList().map(x=>x.item)
+    const practice = buildPracticeList();
+    const flat = practice.map(x=>x.item)
       .map(it => ({ it, t: effectiveTime(it) }))
       .filter(x => x.t != null);
     const totalMs = currentDurationMs || ((flat.reduce((m,x)=>Math.max(m,x.t), 0) + 10) * 1000);
+    const elapsedMs = getSelectedDeviceId() ? currentPlaybackMs() : 0;
     const bpm = Number(r.bpm) || 0;
     const pxPerBeat = 26 * songMapZoom;
-    const pxPerSec = bpm ? pxPerBeat * bpm/60 : 14 * songMapZoom;
+    const pxPerSec = bpm ? (pxPerBeat * bpm/60) : 14 * songMapZoom;
     const trackHeight = Math.max((totalMs/1000)*pxPerSec, 200);
     track.style.height = trackHeight + 'px';
     track.innerHTML = '';
     const totalSec = totalMs/1000;
+
+    // Section bands make the routine structure visible in the song timeline.
+    if(practice.length){
+      let runningCounts = 0;
+      sections.forEach((sec, sIdx) => {
+        const sectionItems = sec.items;
+        const firstTimed = sectionItems.map(effectiveTime).find(t => t != null);
+        const startSec = firstTimed != null ? firstTimed : (bpm ? (r.songStartOffset||0) + runningCounts * 60/bpm : null);
+        const sectionCounts = sectionItems.reduce((sum,it)=>sum + Number(it.counts||0), 0);
+        runningCounts += sectionCounts;
+        const nextSec = sections[sIdx+1];
+        const nextTimed = nextSec ? nextSec.items.map(effectiveTime).find(t => t != null) : null;
+        let endSec = nextTimed != null ? nextTimed : (bpm && startSec != null ? startSec + sectionCounts * 60/bpm : null);
+        if(startSec == null || endSec == null || endSec <= startSec) return;
+        const band = document.createElement('div');
+        band.className = 'song-map-section-band' + (sIdx % 2 ? ' alt' : '');
+        band.style.top = Math.max(0, startSec * pxPerSec) + 'px';
+        band.style.height = Math.max(2, Math.min(totalSec, endSec) * pxPerSec - startSec * pxPerSec) + 'px';
+        band.innerHTML = `<span class="section-band-label">${escapeAttr(sec.title || ('Section ' + (sIdx+1)))}</span>`;
+        track.appendChild(band);
+      });
+    }
+
     if(bpm){
-      // One ruler step = exactly one beat = 60/BPM seconds.
       const beatInterval = 60/bpm;
       const offset = r.songStartOffset || 0;
+      let beatIdx = 0;
       const maxBeats = Math.ceil(totalSec / beatInterval) + 1;
-      for(let beatIdx = 0; beatIdx < maxBeats; beatIdx++){
-        const t = offset + beatIdx * beatInterval;
-        if(t > totalSec) break;
+      for(let i=0, t=offset; i<maxBeats && t <= totalSec; i++, t += beatInterval){
         const countNum = (beatIdx % 8) + 1;
         const isDownbeat = countNum === 1;
         const rulerLine = document.createElement('div');
         rulerLine.className = 'song-map-ruler-line' + (isDownbeat ? ' downbeat' : '');
-        rulerLine.style.top = t*pxPerSec + 'px';
+        rulerLine.style.top = (t*pxPerSec) + 'px';
         rulerLine.innerHTML = `<span class="ruler-count">${countNum}</span>` + (isDownbeat ? `<span class="ruler-time">${formatPreciseTime(t)}</span>` : '');
         track.appendChild(rulerLine);
+        beatIdx++;
       }
     } else {
-      for(let s = 0; s <= totalSec; s += 10){
+      for(let sec=0; sec <= totalSec; sec += 10){
         const rulerLine = document.createElement('div');
         rulerLine.className = 'song-map-ruler-line';
-        rulerLine.style.top = s*pxPerSec + 'px';
-        rulerLine.innerHTML = `<span class="ruler-label">${formatTime(s)}</span>`;
+        rulerLine.style.top = (sec*pxPerSec) + 'px';
+        rulerLine.innerHTML = `<span class="ruler-label">${formatTime(sec)}</span>`;
         track.appendChild(rulerLine);
       }
     }
-    flat.forEach(({it,t}) => {
+    practice.forEach(({item:it}) => {
+      const t = effectiveTime(it);
+      if(t == null) return;
+      const topPx = Math.min(trackHeight, t*pxPerSec);
       const marker = document.createElement('div');
       marker.className = 'song-map-marker';
-      marker.style.top = Math.min(trackHeight, t*pxPerSec) + 'px';
+      marker.style.top = topPx + 'px';
       marker.innerHTML = `<span class="marker-label">${formatPreciseTime(t)} · ${escapeAttr(it.name)}</span>`;
       marker.addEventListener('click', () => spotifyPlayTrackAt(r.spotifyTrackId, t*1000));
       track.appendChild(marker);
     });
+    const playheadPx = Math.min(trackHeight, (elapsedMs/1000)*pxPerSec);
     const playhead = document.createElement('div');
     playhead.className = 'song-map-playhead';
+    playhead.style.top = playheadPx + 'px';
     track.appendChild(playhead);
-    updateSongMapPlayhead();
     if(currentIsPlaying){
-      startSongMapAnimation();
-      const playheadPx = Math.min(trackHeight, currentPlaybackMs()/1000*pxPerSec);
       const viewTop = scrollWrap.scrollTop, viewBottom = viewTop + scrollWrap.clientHeight;
       if(playheadPx < viewTop || playheadPx > viewBottom - 30) scrollWrap.scrollTop = Math.max(0, playheadPx - scrollWrap.clientHeight/2);
     }
@@ -879,7 +916,7 @@
       if(!flat.length) nowNextEl.textContent = 'Enter a BPM above to auto-time every move, or set times manually below.';
       else {
         const sorted = flat.slice().sort((a,b)=>a.t-b.t);
-        const elapsedSec = currentPlaybackMs()/1000;
+        const elapsedSec = elapsedMs/1000;
         let current = null, next = null;
         for(const x of sorted){ if(x.t <= elapsedSec) current = x; else { next = x; break; } }
         let html = current ? ('Now: <b>' + escapeAttr(current.it.name) + '</b>') : 'Not started yet';
@@ -887,6 +924,8 @@
         nowNextEl.innerHTML = html;
       }
     }
+    const posEl = document.getElementById('spotifyPosDisplay');
+    if(posEl) posEl.textContent = formatTime(elapsedMs/1000) + (currentDurationMs ? ' / ' + formatTime(currentDurationMs/1000) : '');
   }
 
   function renderSongMapBox(){
@@ -953,7 +992,7 @@
         <div class="song-map-zoom" aria-label="Timeline zoom">
           <span class="zoom-label">zoom</span>
           <button class="btn" id="songMapZoomOut" type="button" aria-label="Zoom out">−</button>
-          <input id="songMapZoomRange" type="range" min="50" max="300" step="10" value="100" aria-label="Timeline zoom level">
+          <input id="songMapZoomRange" type="range" min="10" max="300" step="10" value="100" aria-label="Timeline zoom level">
           <button class="btn" id="songMapZoomIn" type="button" aria-label="Zoom in">+</button>
           <span class="zoom-value" id="songMapZoomValue">100%</span>
         </div>
@@ -1006,7 +1045,7 @@
     const zoomRange = document.getElementById('songMapZoomRange');
     const zoomValue = document.getElementById('songMapZoomValue');
     const applySongMapZoom = (value) => {
-      songMapZoom = Math.max(0.5, Math.min(3, Number(value) / 100));
+      songMapZoom = Math.max(0.1, Math.min(3, Number(value) / 100));
       const pct = Math.round(songMapZoom * 100);
       zoomRange.value = pct;
       zoomValue.textContent = pct + '%';
@@ -1504,6 +1543,32 @@
     });
   }
 
+  function openSectionMovePicker(block, sec){
+    const existing = block.querySelector('.section-add-panel');
+    if(existing){ existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.className = 'section-add-panel';
+    const moves = allMoves();
+    panel.innerHTML = `
+      <select aria-label="Choose move to add">
+        <option value="">Choose a move…</option>
+        ${moves.map(m => `<option value="${escapeAttr(m.id)}">${escapeAttr(m.name)} · ${m.counts}-count</option>`).join('')}
+      </select>
+      <button class="btn primary" type="button">Add</button>
+      <button class="btn" type="button">Cancel</button>
+    `;
+    const select = panel.querySelector('select');
+    const [addBtn, cancelBtn] = panel.querySelectorAll('button');
+    addBtn.addEventListener('click', () => {
+      const move = moves.find(m => m.id === select.value);
+      if(!move){ showToast('Choose a move first'); return; }
+      addMoveToTimeline(move, sec);
+    });
+    cancelBtn.addEventListener('click', () => panel.remove());
+    block.insertBefore(panel, block.querySelector('.moves-list'));
+    select.focus();
+  }
+
   function buildSectionBlock(sec, sIdx){
     const block = document.createElement('div');
     block.className = 'section-block';
@@ -1513,6 +1578,7 @@
     head.innerHTML = `
       <input type="text" value="${escapeAttr(sec.title)}" aria-label="Section name">
       <span class="section-count">${countText} counts</span>
+      <button class="section-add-move" type="button">+ Add move</button>
       <button class="icon-btn" title="Move section up">&#8593;</button>
       <button class="icon-btn" title="Move section down">&#8595;</button>
       <button class="icon-btn" title="Delete section">&times;</button>
@@ -1530,6 +1596,9 @@
       showToast('Section removed', true);
     });
     block.appendChild(head);
+
+    const addMoveBtn = head.querySelector('.section-add-move');
+    addMoveBtn.addEventListener('click', () => openSectionMovePicker(block, sec));
 
     const list = document.createElement('div');
     list.className = 'moves-list';
@@ -1575,6 +1644,12 @@
       </div>
       <div class="ti-actions">
         <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+        <span class="move-to-wrap">
+          <select class="move-to-select" title="Move to section" aria-label="Move to section">
+            <option value="">Move to…</option>
+            ${sections.filter(s => s.id !== sec.id).map(s => `<option value="${escapeAttr(s.id)}">${escapeAttr(s.title || 'Section')}</option>`).join('')}
+          </select>
+        </span>
         <button class="up" title="Move up">&#8593;</button>
         <button class="down" title="Move down">&#8595;</button>
         <button class="remove" title="Remove">&times;</button>
@@ -1592,6 +1667,11 @@
     row.querySelector('.ti-notes').addEventListener('input', (e) => { item.notes = e.target.value; saveRoutines(true); });
     row.querySelector('.up').addEventListener('click', () => moveItem(sec, iIdx, -1));
     row.querySelector('.down').addEventListener('click', () => moveItem(sec, iIdx, 1));
+    const moveToSelect = row.querySelector('.move-to-select');
+    if(moveToSelect) moveToSelect.addEventListener('change', () => {
+      const target = sections.find(s => s.id === moveToSelect.value);
+      if(target) moveItemToSection(sec, iIdx, target);
+    });
     row.querySelector('.remove').addEventListener('click', () => {
       lastDeleted = { type:'item', sectionId: sec.id, index: iIdx, data: JSON.parse(JSON.stringify(item)) };
       sec.items.splice(iIdx,1); renderTimeline(); saveRoutines(true);
@@ -1661,6 +1741,15 @@
     dst.sec.items.splice(dstIdx, 0, moved);
     renderTimeline(); saveRoutines(true);
   }
+  function moveItemToSection(fromSec, idx, targetSec){
+    if(!fromSec || !targetSec || fromSec.id === targetSec.id) return;
+    const [it] = fromSec.items.splice(idx, 1);
+    if(!it) return;
+    targetSec.items.push(it);
+    renderTimeline(); saveRoutines(true);
+    showToast(it.name + ' moved to ' + targetSec.title);
+  }
+
   function moveItem(sec, idx, dir){
     const newIdx = idx + dir; if(newIdx < 0 || newIdx >= sec.items.length) return;
     const [it] = sec.items.splice(idx,1); sec.items.splice(newIdx,0,it);
